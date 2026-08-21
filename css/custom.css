@@ -1,0 +1,156 @@
+/* Custom Styles & Print Media Optimizations */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --primary-color: #2563eb;
+  --primary-rgb: 37, 99, 235;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.font-heading {
+  font-family: 'Outfit', sans-serif;
+}
+
+.font-mono-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-feature-settings: 'tnum';
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.4);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.7);
+}
+
+/* Invoice Paper Simulator */
+.invoice-paper-wrapper {
+  perspective: 1000px;
+}
+
+.invoice-paper {
+  width: 210mm;
+  min-height: 297mm;
+  background-color: #ffffff;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  margin: 0 auto;
+  position: relative;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
+}
+
+/* Compact Receipt format */
+.invoice-paper.receipt-format {
+  width: 80mm;
+  min-height: 160mm;
+  padding: 12px;
+}
+
+/* Print Specific Rules */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide all UI elements except the invoice paper */
+  .no-print,
+  #app-header,
+  #app-sidebar,
+  #preview-controls,
+  #history-modal,
+  #toast-container,
+  button,
+  .action-bar {
+    display: none !important;
+  }
+
+  #main-content {
+    display: block !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  #preview-pane {
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  .invoice-paper {
+    width: 100% !important;
+    min-height: auto !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    transform: none !important;
+    page-break-after: avoid;
+    page-break-inside: avoid;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm 10mm 12mm;
+  }
+}
+
+/* Signature Pad Canvas */
+#signature-canvas {
+  touch-action: none;
+  cursor: crosshair;
+  background-color: #fafafa;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 15px rgba(37, 99, 235, 0.2); }
+  50% { box-shadow: 0 0 25px rgba(37, 99, 235, 0.4); }
+}
+
+.glow-focus:focus-within {
+  animation: pulseGlow 2s infinite;
+}
+
+/* Template Accent Colors support */
+.bg-theme-accent {
+  background-color: var(--primary-color) !important;
+}
+
+.text-theme-accent {
+  color: var(--primary-color) !important;
+}
+
+.border-theme-accent {
+  border-color: var(--primary-color) !important;
+}

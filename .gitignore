@@ -1,0 +1,24 @@
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node / dependencies
+node_modules/
+dist/
+build/
+.cache/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
