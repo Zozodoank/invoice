@@ -269,7 +269,7 @@ class SuperadminApp {
     if (!inputEmail) return;
 
     const cleanEmail = inputEmail.trim().toLowerCase();
-    if (cleanEmail !== SUPERADMIN_EMAIL && cleanEmail !== 'dumy@mail.com') {
+    if (cleanEmail !== SUPERADMIN_EMAIL) {
       this.showLoginError(`Akses Ditolak: Email "${cleanEmail}" bukan akun Superadmin. Hanya ${SUPERADMIN_EMAIL} yang dapat mengakses halaman ini.`);
       return;
     }

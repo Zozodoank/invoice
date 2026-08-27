@@ -3,7 +3,7 @@
  * Supports Cloudflare SQLite/D1 user models & client-side OAuth sessions.
  */
 
-const SUPERADMIN_EMAILS = ['megakomindo@gmail.com', 'dumy@mail.com'];
+const SUPERADMIN_EMAILS = ['megakomindo@gmail.com'];
 const AUTH_STORAGE_KEY = 'invoicecraft_auth_user';
 
 const AuthManager = {

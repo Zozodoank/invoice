@@ -201,14 +201,12 @@ VALUES
     ('enterprise', 'Enterprise / Agency', 249000, 'month', -1, 5, 1, 1, 1, 0); -- Bebas Watermark
 
 -- ==============================================================================
--- SEED DATA DUMMY SUPERADMIN
--- CATATAN: Email 'dumy@mail.com' di bawah ini adalah placeholder.
--- Anda dapat mengubahnya ke email Superadmin asli Anda (misal: megakomindo@gmail.com) di Cloudflare D1.
+-- SEED DATA SUPERADMIN UTAMA
 -- ==============================================================================
 INSERT OR IGNORE INTO users (id, email, name, avatar_url, phone, is_superadmin, subscription_status)
 VALUES (
-    'usr_superadmin_dummy',
-    'dumy@mail.com',
+    'usr_superadmin_01',
+    'megakomindo@gmail.com',
     'Super Administrator',
     'https://api.dicebear.com/7.x/bottts/svg?seed=SuperAdmin',
     '0812-3456-7890',
@@ -218,10 +216,10 @@ VALUES (
 
 INSERT OR IGNORE INTO tenants (id, owner_id, name, slug, plan, subscription_status, subscription_expires_at, is_active)
 VALUES (
-    'ten_superadmin_dummy',
-    'usr_superadmin_dummy',
-    'Master Superadmin Workspace',
-    'master-superadmin-workspace',
+    'ten_superadmin_01',
+    'usr_superadmin_01',
+    'Megakomindo Master Workspace',
+    'megakomindo-master-workspace',
     'enterprise',
     'active',
     '2099-12-31 23:59:59',

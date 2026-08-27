@@ -110,13 +110,13 @@ Jika menggunakan **Cloudflare D1 (SQLite Serverless Database)**:
      ```bash
      npx wrangler d1 execute invoicecraft_db --remote --file=./cloudflare_d1_schema.sql
      ```
-3. **Mengganti Email Superadmin Dummy (`dumy@mail.com`)**:
-   - Jalankan query SQL di Cloudflare D1 Dashboard atau via Wrangler untuk mengubah email dummy menjadi email superadmin Anda:
-     ```sql
-     UPDATE users SET email = 'megakomindo@gmail.com' WHERE email = 'dumy@mail.com';
-     ```
+3. **Akun Superadmin Utama**:
+   - Skema database secara otomatis telah menyertakan akun Superadmin utama:
+     `email`: `megakomindo@gmail.com`
+     `role`: `superadmin` / `is_superadmin = 1`
+     `plan`: `enterprise` (aktif lifetime)
 4. **Login OAuth Superadmin**:
-   - Tombol **Superadmin** akan otomatis muncul secara eksklusif saat login dengan email Superadmin (`megakomindo@gmail.com` / email yang Anda daftarkan di D1).
+   - Tombol **Superadmin** akan otomatis muncul secara eksklusif saat login dengan email Superadmin `megakomindo@gmail.com`.
 
 ---
 
