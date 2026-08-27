@@ -5,6 +5,7 @@
 
 const SUPERADMIN_EMAILS = ['megakomindo@gmail.com'];
 const AUTH_STORAGE_KEY = 'invoicecraft_auth_user';
+const GOOGLE_CLIENT_ID = '256211100759-hqsukehq27bp2oejlrlb36mt337ucr8e.apps.googleusercontent.com';
 
 const AuthManager = {
   /**

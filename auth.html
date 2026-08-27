@@ -92,7 +92,7 @@
 
       <!-- Native Google GIS wrapper -->
       <div id="g_id_onload"
-           data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+           data-client_id="256211100759-hqsukehq27bp2oejlrlb36mt337ucr8e.apps.googleusercontent.com"
            data-callback="handleGoogleCredentialResponse"
            data-auto_prompt="false">
       </div>
@@ -183,12 +183,24 @@
       }
     }
 
-    // Google OAuth simulation / prompt on button click
+    // Google OAuth button click (Native GIS Prompt with fallback)
     document.getElementById('btn-google-oauth')?.addEventListener('click', () => {
-      const promptEmail = prompt('Masukkan akun Google Anda (contoh: megakomindo@gmail.com atau email Anda):', 'megakomindo@gmail.com');
-      if (promptEmail) {
-        const user = AuthManager.loginDemo(promptEmail, promptEmail.split('@')[0]);
-        handleLoginSuccess(user);
+      if (window.google && window.google.accounts && window.google.accounts.id) {
+        window.google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            const promptEmail = prompt('Masukkan akun Google Anda (contoh: megakomindo@gmail.com):', 'megakomindo@gmail.com');
+            if (promptEmail) {
+              const user = AuthManager.loginDemo(promptEmail, promptEmail.split('@')[0]);
+              handleLoginSuccess(user);
+            }
+          }
+        });
+      } else {
+        const promptEmail = prompt('Masukkan akun Google Anda (contoh: megakomindo@gmail.com):', 'megakomindo@gmail.com');
+        if (promptEmail) {
+          const user = AuthManager.loginDemo(promptEmail, promptEmail.split('@')[0]);
+          handleLoginSuccess(user);
+        }
       }
     });
 
