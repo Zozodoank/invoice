@@ -25,6 +25,7 @@ Cukup buka file `index.html` langsung di browser favorit Anda (Google Chrome, Mi
    - Palet pilihan warna aksen identitas brand (Biru, Hijau Emerald, Ungu Violet, Merah, Amber, Navy, atau Custom Color Picker).
    - Pilihan status faktur: *Lunas (Paid), Menunggu Pembayaran (Pending), Jatuh Tempo (Overdue), Draft, Dibatalkan (Cancelled)* lengkap dengan kotak centang **Enable / Disable Status Faktur** (Tampilkan/Sembunyikan status badge pada invoice).
    - Kotak centang **Enable / Disable Tanggal Jatuh Tempo** (Tampilkan/Sembunyikan tanggal jatuh tempo pada invoice).
+   - Kotak centang **Enable / Disable Syarat Pembayaran (Payment Terms)** (Tampilkan/Sembunyikan syarat pembayaran pada invoice).
 
 4. **Multi-Mata Uang & Format Angka**:
    - Mendukung **IDR (Rp)**, **USD ($)**, **EUR (€)**, **GBP (£)**, **SGD (S$)**, **JPY (¥)**, **MYR (RM)**, dan **AUD (A$)**.

@@ -261,8 +261,14 @@
           </div>
 
           <div>
-            <label class="text-[11px] font-semibold text-slate-600 dark:text-slate-300 block mb-1">Syarat Pembayaran (Payment Terms)</label>
-            <input type="text" id="input-payment-terms" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs" placeholder="Misal: Net 14 Hari / Pembayaran Penuh" />
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-[11px] font-semibold text-slate-600 dark:text-slate-300">Syarat Pembayaran (Payment Terms)</label>
+              <label class="inline-flex items-center gap-1.5 cursor-pointer" title="Aktifkan atau sembunyikan syarat pembayaran">
+                <input type="checkbox" id="toggle-show-payment-terms" class="w-3.5 h-3.5 text-blue-600 rounded cursor-pointer" checked />
+                <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400">Tampilkan</span>
+              </label>
+            </div>
+            <input type="text" id="input-payment-terms" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs transition-all" placeholder="Misal: Net 14 Hari / Pembayaran Penuh" />
           </div>
         </div>
 

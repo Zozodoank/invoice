@@ -20,6 +20,7 @@ function getInitialInvoice() {
     dueDate: formatDate(dueDate),
     showDueDate: true,
     paymentTerms: 'Jatuh tempo 14 hari',
+    showPaymentTerms: true,
     showStatus: true,
     status: 'pending',
     useDecimals: false,
@@ -207,6 +208,10 @@ class InvoiceApp {
     this.updateDueDateInputState();
 
     setVal('input-payment-terms', this.invoice.paymentTerms);
+    const paymentTermsToggle = document.getElementById('toggle-show-payment-terms');
+    if (paymentTermsToggle) paymentTermsToggle.checked = this.invoice.showPaymentTerms !== false;
+    this.updatePaymentTermsInputState();
+
     setVal('select-status', this.invoice.status);
     const statusToggle = document.getElementById('toggle-show-status');
     if (statusToggle) statusToggle.checked = this.invoice.showStatus !== false;
@@ -269,6 +274,19 @@ class InvoiceApp {
         dueDateInput.classList.remove('opacity-40', 'pointer-events-none');
       } else {
         dueDateInput.classList.add('opacity-40', 'pointer-events-none');
+      }
+    }
+  }
+
+  updatePaymentTermsInputState() {
+    const isTermsEnabled = this.invoice.showPaymentTerms !== false;
+    const termsInput = document.getElementById('input-payment-terms');
+    if (termsInput) {
+      termsInput.disabled = !isTermsEnabled;
+      if (isTermsEnabled) {
+        termsInput.classList.remove('opacity-40', 'pointer-events-none');
+      } else {
+        termsInput.classList.add('opacity-40', 'pointer-events-none');
       }
     }
   }
@@ -664,6 +682,10 @@ class InvoiceApp {
       this.updateDueDateInputState();
     }
     if (id === 'input-payment-terms') this.invoice.paymentTerms = target.value;
+    if (id === 'toggle-show-payment-terms') {
+      this.invoice.showPaymentTerms = target.checked;
+      this.updatePaymentTermsInputState();
+    }
     if (id === 'toggle-show-status') {
       this.invoice.showStatus = target.checked;
       this.updateStatusInputState();

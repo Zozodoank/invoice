@@ -142,7 +142,7 @@ const InvoiceTemplates = {
                   <span class="font-mono-num font-bold text-base" style="color: ${accent}">${formatCurrency(totals.balanceDue, curr, dec)}</span>
                 </div>
               </div>
-              ${invoice.paymentTerms ? `<div class="text-[11px] text-slate-500 mt-2 pt-1 border-t border-slate-200">Syarat: <span class="font-medium text-slate-700">${invoice.paymentTerms}</span></div>` : ''}
+              ${invoice.showPaymentTerms !== false && invoice.paymentTerms ? `<div class="text-[11px] text-slate-500 mt-2 pt-1 border-t border-slate-200">Syarat: <span class="font-medium text-slate-700">${invoice.paymentTerms}</span></div>` : ''}
             </div>
           </div>
 
@@ -323,9 +323,9 @@ const InvoiceTemplates = {
               ${invoice.referenceNumber ? `<p class="text-[10px] text-zinc-400 mt-1">PO: ${invoice.referenceNumber}</p>` : ''}
             </div>
             <div>
-              <p class="text-[10px] font-bold uppercase tracking-wider text-zinc-400">${invoice.showDueDate !== false ? 'Jatuh Tempo' : (invoice.paymentTerms ? 'Syarat Pembayaran' : 'Jatuh Tempo')}</p>
-              <p class="font-mono font-bold text-zinc-900 mt-1">${invoice.showDueDate !== false ? (invoice.dueDate || '-') : (invoice.paymentTerms || '-')}</p>
-              ${invoice.showDueDate !== false && invoice.paymentTerms ? `<p class="text-[10px] text-zinc-500 mt-1">${invoice.paymentTerms}</p>` : ''}
+              <p class="text-[10px] font-bold uppercase tracking-wider text-zinc-400">${invoice.showDueDate !== false ? 'Jatuh Tempo' : (invoice.showPaymentTerms !== false && invoice.paymentTerms ? 'Syarat Pembayaran' : 'Jatuh Tempo')}</p>
+              <p class="font-mono font-bold text-zinc-900 mt-1">${invoice.showDueDate !== false ? (invoice.dueDate || '-') : (invoice.showPaymentTerms !== false && invoice.paymentTerms ? invoice.paymentTerms : '-')}</p>
+              ${invoice.showDueDate !== false && invoice.showPaymentTerms !== false && invoice.paymentTerms ? `<p class="text-[10px] text-zinc-500 mt-1">${invoice.paymentTerms}</p>` : ''}
             </div>
           </div>
 
@@ -486,10 +486,10 @@ const InvoiceTemplates = {
             </div>
 
             <!-- Date & Terms Bar -->
-            <div class="grid ${invoice.showDueDate !== false ? 'grid-cols-3' : 'grid-cols-2'} gap-4 py-3 bg-slate-50 px-4 rounded-lg my-6 text-xs font-mono border border-slate-200">
+            <div class="grid ${(invoice.showDueDate !== false && invoice.showPaymentTerms !== false && invoice.paymentTerms) ? 'grid-cols-3' : (invoice.showDueDate !== false || (invoice.showPaymentTerms !== false && invoice.paymentTerms) ? 'grid-cols-2' : 'grid-cols-1')} gap-4 py-3 bg-slate-50 px-4 rounded-lg my-6 text-xs font-mono border border-slate-200">
               <div><span class="text-slate-500 font-sans">Tgl Faktur:</span> <span class="font-bold text-slate-800">${invoice.date || '-'}</span></div>
               ${invoice.showDueDate !== false ? `<div><span class="text-slate-500 font-sans">Jatuh Tempo:</span> <span class="font-bold text-slate-800">${invoice.dueDate || '-'}</span></div>` : ''}
-              <div><span class="text-slate-500 font-sans">Syarat:</span> <span class="font-bold text-slate-800">${invoice.paymentTerms || 'Jatuh Tempo'}</span></div>
+              ${invoice.showPaymentTerms !== false && invoice.paymentTerms ? `<div><span class="text-slate-500 font-sans">Syarat:</span> <span class="font-bold text-slate-800">${invoice.paymentTerms}</span></div>` : ''}
             </div>
 
             <!-- Items Table -->
