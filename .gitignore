@@ -1,6 +1,7 @@
 # Environment / Secrets
 .env
 .env.*
+!.env.example
 
 # OS Files
 .DS_Store
@@ -12,6 +13,7 @@ node_modules/
 dist/
 build/
 .cache/
+.wrangler/
 
 # Environment
 .env
