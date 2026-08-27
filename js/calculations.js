@@ -16,13 +16,29 @@ const CURRENCIES = {
 /**
  * Format number into selected currency string
  */
-function formatCurrency(amount, currencyCode = 'IDR') {
+function formatCurrency(amount, currencyCode = 'IDR', useDecimals = null) {
   const num = Number(amount) || 0;
-  const config = CURRENCIES[currencyCode] || CURRENCIES.IDR;
-  
+  let curr = currencyCode;
+  let dec = useDecimals;
+
+  // Support passing invoice object or options as second argument
+  if (typeof currencyCode === 'object' && currencyCode !== null) {
+    curr = currencyCode.currency || 'IDR';
+    dec = currencyCode.useDecimals !== undefined ? currencyCode.useDecimals : useDecimals;
+  }
+
+  const config = CURRENCIES[curr] || CURRENCIES.IDR;
+  let fractionDigits = config.fractionDigits;
+
+  if (typeof dec === 'boolean') {
+    fractionDigits = dec ? 2 : 0;
+  } else if (typeof dec === 'number') {
+    fractionDigits = dec;
+  }
+
   const formatted = num.toLocaleString(config.locale, {
-    minimumFractionDigits: config.fractionDigits,
-    maximumFractionDigits: config.fractionDigits
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits
   });
   
   return `${config.symbol} ${formatted}`;
@@ -31,12 +47,28 @@ function formatCurrency(amount, currencyCode = 'IDR') {
 /**
  * Format plain number with thousand separators
  */
-function formatNumber(amount, currencyCode = 'IDR') {
+function formatNumber(amount, currencyCode = 'IDR', useDecimals = null) {
   const num = Number(amount) || 0;
-  const config = CURRENCIES[currencyCode] || CURRENCIES.IDR;
+  let curr = currencyCode;
+  let dec = useDecimals;
+
+  if (typeof currencyCode === 'object' && currencyCode !== null) {
+    curr = currencyCode.currency || 'IDR';
+    dec = currencyCode.useDecimals !== undefined ? currencyCode.useDecimals : useDecimals;
+  }
+
+  const config = CURRENCIES[curr] || CURRENCIES.IDR;
+  let fractionDigits = config.fractionDigits;
+
+  if (typeof dec === 'boolean') {
+    fractionDigits = dec ? 2 : 0;
+  } else if (typeof dec === 'number') {
+    fractionDigits = dec;
+  }
+
   return num.toLocaleString(config.locale, {
-    minimumFractionDigits: config.fractionDigits,
-    maximumFractionDigits: config.fractionDigits
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits
   });
 }
 

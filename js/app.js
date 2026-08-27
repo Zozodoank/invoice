@@ -18,8 +18,11 @@ function getInitialInvoice() {
     referenceNumber: 'PO-2026/08',
     date: formatDate(today),
     dueDate: formatDate(dueDate),
+    showDueDate: true,
     paymentTerms: 'Jatuh tempo 14 hari',
+    showStatus: true,
     status: 'pending',
+    useDecimals: false,
     template: 'modern',
     accentColor: '#2563eb',
     currency: 'IDR',
@@ -199,8 +202,19 @@ class InvoiceApp {
     setVal('input-ref-number', this.invoice.referenceNumber);
     setVal('input-date', this.invoice.date);
     setVal('input-due-date', this.invoice.dueDate);
+    const dueDateToggle = document.getElementById('toggle-show-due-date');
+    if (dueDateToggle) dueDateToggle.checked = this.invoice.showDueDate !== false;
+    this.updateDueDateInputState();
+
     setVal('input-payment-terms', this.invoice.paymentTerms);
     setVal('select-status', this.invoice.status);
+    const statusToggle = document.getElementById('toggle-show-status');
+    if (statusToggle) statusToggle.checked = this.invoice.showStatus !== false;
+    this.updateStatusInputState();
+
+    const decToggle = document.getElementById('toggle-use-decimals');
+    if (decToggle) decToggle.checked = !!this.invoice.useDecimals;
+
     setVal('select-template', this.invoice.template);
     setVal('input-accent-color', this.invoice.accentColor);
     setVal('select-currency', this.invoice.currency);
@@ -244,6 +258,32 @@ class InvoiceApp {
 
     this.renderItemsList();
     this.renderBankAccountsList();
+  }
+
+  updateDueDateInputState() {
+    const isDueDateEnabled = this.invoice.showDueDate !== false;
+    const dueDateInput = document.getElementById('input-due-date');
+    if (dueDateInput) {
+      dueDateInput.disabled = !isDueDateEnabled;
+      if (isDueDateEnabled) {
+        dueDateInput.classList.remove('opacity-40', 'pointer-events-none');
+      } else {
+        dueDateInput.classList.add('opacity-40', 'pointer-events-none');
+      }
+    }
+  }
+
+  updateStatusInputState() {
+    const isStatusEnabled = this.invoice.showStatus !== false;
+    const statusSelect = document.getElementById('select-status');
+    if (statusSelect) {
+      statusSelect.disabled = !isStatusEnabled;
+      if (isStatusEnabled) {
+        statusSelect.classList.remove('opacity-40', 'pointer-events-none');
+      } else {
+        statusSelect.classList.add('opacity-40', 'pointer-events-none');
+      }
+    }
   }
 
   updateTaxInputState() {
@@ -402,15 +442,16 @@ class InvoiceApp {
 
   updateSidebarTotals(totals) {
     const curr = this.invoice.currency || 'IDR';
+    const dec = this.invoice.useDecimals;
     const setTxt = (id, val) => {
       const el = document.getElementById(id);
       if (el) el.innerText = val;
     };
 
-    setTxt('summary-subtotal', formatCurrency(totals.subtotal, curr));
-    setTxt('summary-tax', formatCurrency(totals.taxAmount, curr));
-    setTxt('summary-grand-total', formatCurrency(totals.grandTotal, curr));
-    setTxt('summary-balance-due', formatCurrency(totals.balanceDue, curr));
+    setTxt('summary-subtotal', formatCurrency(totals.subtotal, curr, dec));
+    setTxt('summary-tax', formatCurrency(totals.taxAmount, curr, dec));
+    setTxt('summary-grand-total', formatCurrency(totals.grandTotal, curr, dec));
+    setTxt('summary-balance-due', formatCurrency(totals.balanceDue, curr, dec));
   }
 
   setZoom(level) {
@@ -618,7 +659,18 @@ class InvoiceApp {
     if (id === 'input-ref-number') this.invoice.referenceNumber = target.value;
     if (id === 'input-date') this.invoice.date = target.value;
     if (id === 'input-due-date') this.invoice.dueDate = target.value;
+    if (id === 'toggle-show-due-date') {
+      this.invoice.showDueDate = target.checked;
+      this.updateDueDateInputState();
+    }
     if (id === 'input-payment-terms') this.invoice.paymentTerms = target.value;
+    if (id === 'toggle-show-status') {
+      this.invoice.showStatus = target.checked;
+      this.updateStatusInputState();
+    }
+    if (id === 'toggle-use-decimals') {
+      this.invoice.useDecimals = target.checked;
+    }
     if (id === 'select-status') this.invoice.status = target.value;
     if (id === 'select-template') this.invoice.template = target.value;
     if (id === 'input-accent-color') this.invoice.accentColor = target.value;
@@ -730,6 +782,7 @@ class InvoiceApp {
   updateStatsCards() {
     const summary = StorageManager.getHistorySummary();
     const curr = this.invoice.currency || 'IDR';
+    const dec = this.invoice.useDecimals;
 
     const setTxt = (id, val) => {
       const el = document.getElementById(id);
@@ -737,9 +790,9 @@ class InvoiceApp {
     };
 
     setTxt('stat-total-invoices', summary.totalCount);
-    setTxt('stat-total-amount', formatCurrency(summary.totalAmount, curr));
-    setTxt('stat-total-paid', formatCurrency(summary.totalPaid, curr));
-    setTxt('stat-total-pending', formatCurrency(summary.totalPending, curr));
+    setTxt('stat-total-amount', formatCurrency(summary.totalAmount, curr, dec));
+    setTxt('stat-total-paid', formatCurrency(summary.totalPaid, curr, dec));
+    setTxt('stat-total-pending', formatCurrency(summary.totalPending, curr, dec));
   }
 
   openHistoryModal() {
@@ -788,13 +841,14 @@ class InvoiceApp {
     tbody.innerHTML = list.map(inv => {
       const totals = calculateInvoiceTotals(inv);
       const curr = inv.currency || 'IDR';
+      const dec = inv.useDecimals;
       return `
-        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 text-xs">
-          <td class="py-3 px-4 font-mono-num font-bold text-slate-900 dark:text-slate-100">${inv.number || '-'}</td>
-          <td class="py-3 px-4 text-slate-800 dark:text-slate-200 font-semibold">${inv.clientName || 'Tanpa Nama'}</td>
-          <td class="py-3 px-4 text-slate-500 dark:text-slate-400 font-mono-num">${inv.date || '-'}</td>
-          <td class="py-3 px-4 font-mono-num font-bold text-slate-900 dark:text-slate-100">${formatCurrency(totals.grandTotal, curr)}</td>
-          <td class="py-3 px-4">${InvoiceTemplates.renderStatusBadge(inv.status, inv.language || 'id')}</td>
+        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+          <td class="py-3 px-4 font-mono-num font-bold text-slate-800 dark:text-slate-200">${inv.number || '-'}</td>
+          <td class="py-3 px-4 text-slate-600 dark:text-slate-300 font-semibold">${inv.clientName || '-'}</td>
+          <td class="py-3 px-4 text-slate-500 text-[11px]">${inv.date || '-'}</td>
+          <td class="py-3 px-4 font-mono-num font-bold text-slate-900 dark:text-slate-100">${formatCurrency(totals.grandTotal, curr, dec)}</td>
+          <td class="py-3 px-4">${inv.showStatus !== false ? InvoiceTemplates.renderStatusBadge(inv.status, inv.language || 'id') : '<span class="text-xs text-slate-400 italic">Nonaktif</span>'}</td>
           <td class="py-3 px-4 text-right space-x-1">
             <button class="btn-load-history px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-semibold hover:bg-blue-100" data-id="${inv.id}">Buka</button>
             <button class="btn-delete-history p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" data-id="${inv.id}" title="Hapus">

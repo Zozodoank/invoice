@@ -73,6 +73,7 @@ const InvoiceTemplates = {
     const accent = invoice.accentColor || '#2563eb';
     const lang = invoice.language || 'id';
     const curr = invoice.currency || 'IDR';
+    const dec = invoice.useDecimals;
     
     return `
       <div class="p-8 sm:p-12 text-slate-800 bg-white flex flex-col justify-between min-h-[297mm]">
@@ -106,11 +107,13 @@ const InvoiceTemplates = {
                 <div><span class="font-semibold text-slate-700">No:</span> <span class="font-bold text-slate-900">${invoice.number || 'INV-001'}</span></div>
                 ${invoice.referenceNumber ? `<div><span>Ref/PO:</span> ${invoice.referenceNumber}</div>` : ''}
                 <div><span>Tanggal:</span> ${invoice.date || '-'}</div>
-                <div><span>Jatuh Tempo:</span> <span class="font-semibold text-slate-800">${invoice.dueDate || '-'}</span></div>
+                ${invoice.showDueDate !== false && invoice.dueDate ? `<div><span>Jatuh Tempo:</span> <span class="font-semibold text-slate-800">${invoice.dueDate}</span></div>` : ''}
               </div>
-              <div class="mt-3">
-                ${this.renderStatusBadge(invoice.status, lang)}
-              </div>
+              ${invoice.showStatus !== false ? `
+                <div class="mt-3">
+                  ${this.renderStatusBadge(invoice.status, lang)}
+                </div>
+              ` : ''}
             </div>
           </div>
 
@@ -132,11 +135,11 @@ const InvoiceTemplates = {
                 <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Ringkasan Tagihan:</span>
                 <div class="flex justify-between items-center text-xs py-1 border-b border-slate-200">
                   <span class="text-slate-600">Total Tagihan:</span>
-                  <span class="font-mono-num font-bold text-slate-900">${formatCurrency(totals.grandTotal, curr)}</span>
+                  <span class="font-mono-num font-bold text-slate-900">${formatCurrency(totals.grandTotal, curr, dec)}</span>
                 </div>
                 <div class="flex justify-between items-center text-xs py-1">
                   <span class="text-slate-600">Sisa Pembayaran:</span>
-                  <span class="font-mono-num font-bold text-base" style="color: ${accent}">${formatCurrency(totals.balanceDue, curr)}</span>
+                  <span class="font-mono-num font-bold text-base" style="color: ${accent}">${formatCurrency(totals.balanceDue, curr, dec)}</span>
                 </div>
               </div>
               ${invoice.paymentTerms ? `<div class="text-[11px] text-slate-500 mt-2 pt-1 border-t border-slate-200">Syarat: <span class="font-medium text-slate-700">${invoice.paymentTerms}</span></div>` : ''}
@@ -167,11 +170,11 @@ const InvoiceTemplates = {
                         ${item.description ? `<div class="text-[11px] text-slate-500 mt-0.5">${item.description}</div>` : ''}
                       </td>
                       <td class="py-3 px-4 text-center text-slate-700">${item.quantity || 1} <span class="text-[10px] text-slate-400 font-sans">${item.unit || ''}</span></td>
-                      <td class="py-3 px-4 text-right text-slate-700">${formatCurrency(item.price, curr)}</td>
+                      <td class="py-3 px-4 text-right text-slate-700">${formatCurrency(item.price, curr, dec)}</td>
                       <td class="py-3 px-4 text-right text-slate-500">
-                        ${Number(item.discountValue) > 0 ? (item.discountType === 'percent' ? `${item.discountValue}%` : formatCurrency(item.discountValue, curr)) : '-'}
+                        ${Number(item.discountValue) > 0 ? (item.discountType === 'percent' ? `${item.discountValue}%` : formatCurrency(item.discountValue, curr, dec)) : '-'}
                       </td>
-                      <td class="py-3 px-4 text-right font-bold text-slate-900">${formatCurrency(lineTotal, curr)}</td>
+                      <td class="py-3 px-4 text-right font-bold text-slate-900">${formatCurrency(lineTotal, curr, dec)}</td>
                     </tr>
                   `;
                 }).join('')}
@@ -206,40 +209,40 @@ const InvoiceTemplates = {
               <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 font-mono-num text-xs space-y-2">
                 <div class="flex justify-between text-slate-600">
                   <span class="font-sans">Subtotal</span>
-                  <span>${formatCurrency(totals.subtotal, curr)}</span>
+                  <span>${formatCurrency(totals.subtotal, curr, dec)}</span>
                 </div>
                 ${totals.globalDiscount > 0 ? `
                   <div class="flex justify-between text-emerald-600">
                     <span class="font-sans">Diskon ${invoice.discountType === 'percent' ? `(${invoice.discountValue}%)` : ''}</span>
-                    <span>-${formatCurrency(totals.globalDiscount, curr)}</span>
+                    <span>-${formatCurrency(totals.globalDiscount, curr, dec)}</span>
                   </div>
                 ` : ''}
                 ${totals.taxAmount > 0 ? `
                   <div class="flex justify-between text-slate-600">
                     <span class="font-sans">PPN / Pajak (${totals.taxRate}%)</span>
-                    <span>+${formatCurrency(totals.taxAmount, curr)}</span>
+                    <span>+${formatCurrency(totals.taxAmount, curr, dec)}</span>
                   </div>
                 ` : ''}
                 ${totals.shippingFee > 0 ? `
                   <div class="flex justify-between text-slate-600">
                     <span class="font-sans">Biaya Kirim / Lainnya</span>
-                    <span>+${formatCurrency(totals.shippingFee, curr)}</span>
+                    <span>+${formatCurrency(totals.shippingFee, curr, dec)}</span>
                   </div>
                 ` : ''}
                 
                 <div class="border-t border-slate-300 pt-2 flex justify-between font-bold text-sm text-slate-900">
                   <span class="font-sans">Grand Total</span>
-                  <span>${formatCurrency(totals.grandTotal, curr)}</span>
+                  <span>${formatCurrency(totals.grandTotal, curr, dec)}</span>
                 </div>
 
                 ${totals.downPayment > 0 ? `
                   <div class="flex justify-between text-emerald-700">
                     <span class="font-sans">Uang Muka (DP) / Dibayar</span>
-                    <span>-${formatCurrency(totals.downPayment, curr)}</span>
+                    <span>-${formatCurrency(totals.downPayment, curr, dec)}</span>
                   </div>
                   <div class="border-t border-slate-300 pt-2 flex justify-between font-bold text-base" style="color: ${accent}">
                     <span class="font-sans">Sisa Tagihan</span>
-                    <span>${formatCurrency(totals.balanceDue, curr)}</span>
+                    <span>${formatCurrency(totals.balanceDue, curr, dec)}</span>
                   </div>
                 ` : ''}
               </div>
@@ -277,6 +280,7 @@ const InvoiceTemplates = {
   minimalist(invoice, totals) {
     const lang = invoice.language || 'id';
     const curr = invoice.currency || 'IDR';
+    const dec = invoice.useDecimals;
     
     return `
       <div class="p-8 sm:p-12 text-zinc-900 bg-white flex flex-col justify-between min-h-[297mm]">
@@ -293,9 +297,11 @@ const InvoiceTemplates = {
               ` : `
                 <span class="text-lg font-bold uppercase tracking-wider">${invoice.senderName || 'COMPANY NAME'}</span>
               `}
-              <div class="mt-2">
-                ${this.renderStatusBadge(invoice.status, lang)}
-              </div>
+              ${invoice.showStatus !== false ? `
+                <div class="mt-2">
+                  ${this.renderStatusBadge(invoice.status, lang)}
+                </div>
+              ` : ''}
             </div>
           </div>
 
@@ -317,9 +323,9 @@ const InvoiceTemplates = {
               ${invoice.referenceNumber ? `<p class="text-[10px] text-zinc-400 mt-1">PO: ${invoice.referenceNumber}</p>` : ''}
             </div>
             <div>
-              <p class="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Jatuh Tempo</p>
-              <p class="font-mono font-bold text-zinc-900 mt-1">${invoice.dueDate || '-'}</p>
-              ${invoice.paymentTerms ? `<p class="text-[10px] text-zinc-500 mt-1">${invoice.paymentTerms}</p>` : ''}
+              <p class="text-[10px] font-bold uppercase tracking-wider text-zinc-400">${invoice.showDueDate !== false ? 'Jatuh Tempo' : (invoice.paymentTerms ? 'Syarat Pembayaran' : 'Jatuh Tempo')}</p>
+              <p class="font-mono font-bold text-zinc-900 mt-1">${invoice.showDueDate !== false ? (invoice.dueDate || '-') : (invoice.paymentTerms || '-')}</p>
+              ${invoice.showDueDate !== false && invoice.paymentTerms ? `<p class="text-[10px] text-zinc-500 mt-1">${invoice.paymentTerms}</p>` : ''}
             </div>
           </div>
 
@@ -343,11 +349,11 @@ const InvoiceTemplates = {
                       ${item.description ? `<div class="text-[11px] text-zinc-500 mt-0.5">${item.description}</div>` : ''}
                     </td>
                     <td class="py-3 px-2 text-center text-zinc-700">${item.quantity || 1} ${item.unit || ''}</td>
-                    <td class="py-3 px-2 text-right text-zinc-700">${formatCurrency(item.price, curr)}</td>
+                    <td class="py-3 px-2 text-right text-zinc-700">${formatCurrency(item.price, curr, dec)}</td>
                     <td class="py-3 px-2 text-right text-zinc-500">
-                      ${Number(item.discountValue) > 0 ? (item.discountType === 'percent' ? `${item.discountValue}%` : formatCurrency(item.discountValue, curr)) : '-'}
+                      ${Number(item.discountValue) > 0 ? (item.discountType === 'percent' ? `${item.discountValue}%` : formatCurrency(item.discountValue, curr, dec)) : '-'}
                     </td>
-                    <td class="py-3 px-2 text-right font-bold text-zinc-900">${formatCurrency(calculateItemTotal(item), curr)}</td>
+                    <td class="py-3 px-2 text-right font-bold text-zinc-900">${formatCurrency(calculateItemTotal(item), curr, dec)}</td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -367,40 +373,42 @@ const InvoiceTemplates = {
             <div class="w-5/12 font-mono text-xs space-y-2">
               <div class="flex justify-between text-zinc-600">
                 <span class="font-sans">Subtotal</span>
-                <span>${formatCurrency(totals.subtotal, curr)}</span>
+                <span>${formatCurrency(totals.subtotal, curr, dec)}</span>
               </div>
               ${totals.globalDiscount > 0 ? `
                 <div class="flex justify-between text-zinc-600">
                   <span class="font-sans">Diskon</span>
-                  <span>-${formatCurrency(totals.globalDiscount, curr)}</span>
+                  <span>-${formatCurrency(totals.globalDiscount, curr, dec)}</span>
                 </div>
               ` : ''}
               ${totals.taxAmount > 0 ? `
                 <div class="flex justify-between text-zinc-600">
                   <span class="font-sans">Pajak (${totals.taxRate}%)</span>
-                  <span>+${formatCurrency(totals.taxAmount, curr)}</span>
+                  <span>+${formatCurrency(totals.taxAmount, curr, dec)}</span>
                 </div>
               ` : ''}
               ${totals.shippingFee > 0 ? `
                 <div class="flex justify-between text-zinc-600">
                   <span class="font-sans">Ongkir/Biaya</span>
-                  <span>+${formatCurrency(totals.shippingFee, curr)}</span>
+                  <span>+${formatCurrency(totals.shippingFee, curr, dec)}</span>
                 </div>
               ` : ''}
               <div class="border-t-2 border-zinc-900 pt-2 flex justify-between font-bold text-base text-zinc-900">
                 <span class="font-sans uppercase">Total</span>
-                <span>${formatCurrency(totals.grandTotal, curr)}</span>
+                <span>${formatCurrency(totals.grandTotal, curr, dec)}</span>
               </div>
               ${totals.downPayment > 0 ? `
                 <div class="flex justify-between text-zinc-600">
                   <span class="font-sans">DP/Terbayar</span>
-                  <span>-${formatCurrency(totals.downPayment, curr)}</span>
+                  <span>-${formatCurrency(totals.downPayment, curr, dec)}</span>
                 </div>
                 <div class="border-t border-zinc-300 pt-1 flex justify-between font-bold text-sm text-zinc-900">
                   <span class="font-sans uppercase">Sisa Tagihan</span>
-                  <span>${formatCurrency(totals.balanceDue, curr)}</span>
+                  <span>${formatCurrency(totals.balanceDue, curr, dec)}</span>
                 </div>
               ` : ''}
+            </div>
+          </div>
             </div>
           </div>
         </div>
@@ -426,6 +434,7 @@ const InvoiceTemplates = {
     const accent = invoice.accentColor || '#1e3a8a';
     const lang = invoice.language || 'id';
     const curr = invoice.currency || 'IDR';
+    const dec = invoice.useDecimals;
     
     return `
       <div class="text-slate-800 bg-white flex flex-col justify-between min-h-[297mm]">
@@ -442,9 +451,11 @@ const InvoiceTemplates = {
               ` : `
                 <h2 class="text-xl font-bold tracking-tight">${invoice.senderName || 'PERUSAHAAN'}</h2>
               `}
-              <div class="mt-2">
-                ${this.renderStatusBadge(invoice.status, lang)}
-              </div>
+              ${invoice.showStatus !== false ? `
+                <div class="mt-2">
+                  ${this.renderStatusBadge(invoice.status, lang)}
+                </div>
+              ` : ''}
             </div>
           </div>
 
@@ -475,9 +486,9 @@ const InvoiceTemplates = {
             </div>
 
             <!-- Date & Terms Bar -->
-            <div class="grid grid-cols-3 gap-4 py-3 bg-slate-50 px-4 rounded-lg my-6 text-xs font-mono border border-slate-200">
+            <div class="grid ${invoice.showDueDate !== false ? 'grid-cols-3' : 'grid-cols-2'} gap-4 py-3 bg-slate-50 px-4 rounded-lg my-6 text-xs font-mono border border-slate-200">
               <div><span class="text-slate-500 font-sans">Tgl Faktur:</span> <span class="font-bold text-slate-800">${invoice.date || '-'}</span></div>
-              <div><span class="text-slate-500 font-sans">Jatuh Tempo:</span> <span class="font-bold text-slate-800">${invoice.dueDate || '-'}</span></div>
+              ${invoice.showDueDate !== false ? `<div><span class="text-slate-500 font-sans">Jatuh Tempo:</span> <span class="font-bold text-slate-800">${invoice.dueDate || '-'}</span></div>` : ''}
               <div><span class="text-slate-500 font-sans">Syarat:</span> <span class="font-bold text-slate-800">${invoice.paymentTerms || 'Jatuh Tempo'}</span></div>
             </div>
 
@@ -502,11 +513,11 @@ const InvoiceTemplates = {
                       ${item.description ? `<div class="text-[11px] text-slate-500">${item.description}</div>` : ''}
                     </td>
                     <td class="py-3 px-3 text-center text-slate-700">${item.quantity || 1} ${item.unit || ''}</td>
-                    <td class="py-3 px-3 text-right text-slate-700">${formatCurrency(item.price, curr)}</td>
+                    <td class="py-3 px-3 text-right text-slate-700">${formatCurrency(item.price, curr, dec)}</td>
                     <td class="py-3 px-3 text-right text-slate-500">
-                      ${Number(item.discountValue) > 0 ? (item.discountType === 'percent' ? `${item.discountValue}%` : formatCurrency(item.discountValue, curr)) : '-'}
+                      ${Number(item.discountValue) > 0 ? (item.discountType === 'percent' ? `${item.discountValue}%` : formatCurrency(item.discountValue, curr, dec)) : '-'}
                     </td>
-                    <td class="py-3 px-3 text-right font-bold text-slate-900">${formatCurrency(calculateItemTotal(item), curr)}</td>
+                    <td class="py-3 px-3 text-right font-bold text-slate-900">${formatCurrency(calculateItemTotal(item), curr, dec)}</td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -525,38 +536,38 @@ const InvoiceTemplates = {
               <div class="col-span-5 font-mono-num text-xs space-y-2">
                 <div class="flex justify-between text-slate-600">
                   <span class="font-sans">Subtotal</span>
-                  <span>${formatCurrency(totals.subtotal, curr)}</span>
+                  <span>${formatCurrency(totals.subtotal, curr, dec)}</span>
                 </div>
                 ${totals.globalDiscount > 0 ? `
                   <div class="flex justify-between text-emerald-600">
                     <span class="font-sans">Diskon</span>
-                    <span>-${formatCurrency(totals.globalDiscount, curr)}</span>
+                    <span>-${formatCurrency(totals.globalDiscount, curr, dec)}</span>
                   </div>
                 ` : ''}
                 ${totals.taxAmount > 0 ? `
                   <div class="flex justify-between text-slate-600">
                     <span class="font-sans">PPN (${totals.taxRate}%)</span>
-                    <span>+${formatCurrency(totals.taxAmount, curr)}</span>
+                    <span>+${formatCurrency(totals.taxAmount, curr, dec)}</span>
                   </div>
                 ` : ''}
                 ${totals.shippingFee > 0 ? `
                   <div class="flex justify-between text-slate-600">
                     <span class="font-sans">Ongkos Kirim</span>
-                    <span>+${formatCurrency(totals.shippingFee, curr)}</span>
+                    <span>+${formatCurrency(totals.shippingFee, curr, dec)}</span>
                   </div>
                 ` : ''}
                 <div class="border-t-2 border-slate-800 pt-2 flex justify-between font-bold text-sm text-slate-900">
                   <span class="font-sans">Total Tagihan</span>
-                  <span>${formatCurrency(totals.grandTotal, curr)}</span>
+                  <span>${formatCurrency(totals.grandTotal, curr, dec)}</span>
                 </div>
                 ${totals.downPayment > 0 ? `
                   <div class="flex justify-between text-emerald-700">
                     <span class="font-sans">Uang Muka (DP)</span>
-                    <span>-${formatCurrency(totals.downPayment, curr)}</span>
+                    <span>-${formatCurrency(totals.downPayment, curr, dec)}</span>
                   </div>
                   <div class="border-t border-slate-300 pt-1 flex justify-between font-bold text-base text-blue-900">
                     <span class="font-sans">Sisa Pembayaran</span>
-                    <span>${formatCurrency(totals.balanceDue, curr)}</span>
+                    <span>${formatCurrency(totals.balanceDue, curr, dec)}</span>
                   </div>
                 ` : ''}
               </div>
@@ -585,6 +596,7 @@ const InvoiceTemplates = {
     const accent = invoice.accentColor || '#7c3aed';
     const lang = invoice.language || 'id';
     const curr = invoice.currency || 'IDR';
+    const dec = invoice.useDecimals;
     
     return `
       <div class="p-8 sm:p-12 text-slate-800 bg-white flex flex-col justify-between min-h-[297mm]">
@@ -609,9 +621,11 @@ const InvoiceTemplates = {
               <div class="text-right">
                 <span class="text-2xl font-black tracking-tight">${invoice.title || 'INVOICE'}</span>
                 <p class="font-mono text-xs text-white/90">#${invoice.number || 'INV-001'}</p>
-                <div class="mt-2">
-                  ${this.renderStatusBadge(invoice.status, lang)}
-                </div>
+                ${invoice.showStatus !== false ? `
+                  <div class="mt-2">
+                    ${this.renderStatusBadge(invoice.status, lang)}
+                  </div>
+                ` : ''}
               </div>
             </div>
           </div>
@@ -625,18 +639,20 @@ const InvoiceTemplates = {
               <p class="text-xs text-slate-500 mt-2">${invoice.clientEmail || ''} ${invoice.clientPhone ? `• ${invoice.clientPhone}` : ''}</p>
             </div>
 
-            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-2 gap-2 text-xs">
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 grid ${invoice.showDueDate !== false ? 'grid-cols-2' : 'grid-cols-1'} gap-2 text-xs">
               <div>
                 <span class="text-slate-400 text-[10px] uppercase font-bold">Tanggal:</span>
                 <p class="font-semibold text-slate-800 mt-0.5">${invoice.date || '-'}</p>
               </div>
-              <div>
-                <span class="text-slate-400 text-[10px] uppercase font-bold">Jatuh Tempo:</span>
-                <p class="font-semibold text-rose-600 mt-0.5">${invoice.dueDate || '-'}</p>
-              </div>
-              <div class="col-span-2 pt-2 border-t border-slate-200 mt-1">
+              ${invoice.showDueDate !== false ? `
+                <div>
+                  <span class="text-slate-400 text-[10px] uppercase font-bold">Jatuh Tempo:</span>
+                  <p class="font-semibold text-rose-600 mt-0.5">${invoice.dueDate || '-'}</p>
+                </div>
+              ` : ''}
+              <div class="${invoice.showDueDate !== false ? 'col-span-2' : ''} pt-2 border-t border-slate-200 mt-1">
                 <span class="text-slate-400 text-[10px] uppercase font-bold">Total Pembayaran:</span>
-                <p class="font-bold text-base" style="color: ${accent}">${formatCurrency(totals.balanceDue, curr)}</p>
+                <p class="font-bold text-base" style="color: ${accent}">${formatCurrency(totals.balanceDue, curr, dec)}</p>
               </div>
             </div>
           </div>
@@ -663,11 +679,11 @@ const InvoiceTemplates = {
                       ${item.description ? `<div class="text-[11px] text-slate-500">${item.description}</div>` : ''}
                     </td>
                     <td class="py-3 px-4 text-center text-slate-700">${item.quantity || 1} ${item.unit || ''}</td>
-                    <td class="py-3 px-4 text-right text-slate-700">${formatCurrency(item.price, curr)}</td>
+                    <td class="py-3 px-4 text-right text-slate-700">${formatCurrency(item.price, curr, dec)}</td>
                     <td class="py-3 px-4 text-right text-slate-500">
-                      ${Number(item.discountValue) > 0 ? (item.discountType === 'percent' ? `${item.discountValue}%` : formatCurrency(item.discountValue, curr)) : '-'}
+                      ${Number(item.discountValue) > 0 ? (item.discountType === 'percent' ? `${item.discountValue}%` : formatCurrency(item.discountValue, curr, dec)) : '-'}
                     </td>
-                    <td class="py-3 px-4 text-right font-bold text-slate-900">${formatCurrency(calculateItemTotal(item), curr)}</td>
+                    <td class="py-3 px-4 text-right font-bold text-slate-900">${formatCurrency(calculateItemTotal(item), curr, dec)}</td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -687,38 +703,38 @@ const InvoiceTemplates = {
             <div class="col-span-5 bg-slate-50 p-4 rounded-xl border border-slate-200 font-mono-num text-xs space-y-2">
               <div class="flex justify-between text-slate-600">
                 <span class="font-sans">Subtotal</span>
-                <span>${formatCurrency(totals.subtotal, curr)}</span>
+                <span>${formatCurrency(totals.subtotal, curr, dec)}</span>
               </div>
               ${totals.globalDiscount > 0 ? `
                 <div class="flex justify-between text-emerald-600">
                   <span class="font-sans">Diskon</span>
-                  <span>-${formatCurrency(totals.globalDiscount, curr)}</span>
+                  <span>-${formatCurrency(totals.globalDiscount, curr, dec)}</span>
                 </div>
               ` : ''}
               ${totals.taxAmount > 0 ? `
                 <div class="flex justify-between text-slate-600">
                   <span class="font-sans">Pajak (${totals.taxRate}%)</span>
-                  <span>+${formatCurrency(totals.taxAmount, curr)}</span>
+                  <span>+${formatCurrency(totals.taxAmount, curr, dec)}</span>
                 </div>
               ` : ''}
               ${totals.shippingFee > 0 ? `
                 <div class="flex justify-between text-slate-600">
                   <span class="font-sans">Ongkir</span>
-                  <span>+${formatCurrency(totals.shippingFee, curr)}</span>
+                  <span>+${formatCurrency(totals.shippingFee, curr, dec)}</span>
                 </div>
               ` : ''}
               <div class="border-t border-slate-300 pt-2 flex justify-between font-bold text-sm text-slate-900">
                 <span class="font-sans">Total</span>
-                <span>${formatCurrency(totals.grandTotal, curr)}</span>
+                <span>${formatCurrency(totals.grandTotal, curr, dec)}</span>
               </div>
               ${totals.downPayment > 0 ? `
                 <div class="flex justify-between text-emerald-700">
                   <span class="font-sans">DP</span>
-                  <span>-${formatCurrency(totals.downPayment, curr)}</span>
+                  <span>-${formatCurrency(totals.downPayment, curr, dec)}</span>
                 </div>
                 <div class="border-t border-slate-300 pt-1 flex justify-between font-bold text-base" style="color: ${accent}">
                   <span class="font-sans">Sisa Tagihan</span>
-                  <span>${formatCurrency(totals.balanceDue, curr)}</span>
+                  <span>${formatCurrency(totals.balanceDue, curr, dec)}</span>
                 </div>
               ` : ''}
             </div>
@@ -745,6 +761,7 @@ const InvoiceTemplates = {
   receipt(invoice, totals) {
     const lang = invoice.language || 'id';
     const curr = invoice.currency || 'IDR';
+    const dec = invoice.useDecimals;
     
     return `
       <div class="p-4 text-slate-900 bg-white font-mono text-[11px] leading-relaxed max-w-[80mm] mx-auto">
@@ -766,7 +783,7 @@ const InvoiceTemplates = {
           </div>
           <div class="flex justify-between">
             <span>Klien: ${invoice.clientName || 'Umum'}</span>
-            <span class="uppercase font-bold">${invoice.status || 'LUNAS'}</span>
+            ${invoice.showStatus !== false ? `<span class="uppercase font-bold">${invoice.status ? (invoice.status === 'paid' ? 'LUNAS' : invoice.status.toUpperCase()) : 'LUNAS'}</span>` : ''}
           </div>
         </div>
 
@@ -777,8 +794,8 @@ const InvoiceTemplates = {
               <div>
                 <div class="font-bold">${item.name || 'Item'}</div>
                 <div class="flex justify-between text-slate-600 text-[10px]">
-                  <span>${item.quantity || 1} x ${formatCurrency(item.price, curr)}</span>
-                  <span class="font-bold text-slate-900">${formatCurrency(calculateItemTotal(item), curr)}</span>
+                  <span>${item.quantity || 1} x ${formatCurrency(item.price, curr, dec)}</span>
+                  <span class="font-bold text-slate-900">${formatCurrency(calculateItemTotal(item), curr, dec)}</span>
                 </div>
               </div>
             `).join('')}
@@ -789,32 +806,32 @@ const InvoiceTemplates = {
         <div class="py-2 border-b border-dashed border-slate-400 space-y-1 text-[10px]">
           <div class="flex justify-between">
             <span>Subtotal:</span>
-            <span>${formatCurrency(totals.subtotal, curr)}</span>
+            <span>${formatCurrency(totals.subtotal, curr, dec)}</span>
           </div>
           ${totals.globalDiscount > 0 ? `
             <div class="flex justify-between text-emerald-600">
               <span>Diskon:</span>
-              <span>-${formatCurrency(totals.globalDiscount, curr)}</span>
+              <span>-${formatCurrency(totals.globalDiscount, curr, dec)}</span>
             </div>
           ` : ''}
           ${totals.taxAmount > 0 ? `
             <div class="flex justify-between">
               <span>Pajak (${totals.taxRate}%):</span>
-              <span>+${formatCurrency(totals.taxAmount, curr)}</span>
+              <span>+${formatCurrency(totals.taxAmount, curr, dec)}</span>
             </div>
           ` : ''}
           <div class="flex justify-between font-bold text-xs pt-1 border-t border-slate-300">
             <span>TOTAL:</span>
-            <span>${formatCurrency(totals.grandTotal, curr)}</span>
+            <span>${formatCurrency(totals.grandTotal, curr, dec)}</span>
           </div>
           ${totals.downPayment > 0 ? `
             <div class="flex justify-between">
               <span>Terbayar (DP):</span>
-              <span>-${formatCurrency(totals.downPayment, curr)}</span>
+              <span>-${formatCurrency(totals.downPayment, curr, dec)}</span>
             </div>
             <div class="flex justify-between font-bold">
               <span>SISA:</span>
-              <span>${formatCurrency(totals.balanceDue, curr)}</span>
+              <span>${formatCurrency(totals.balanceDue, curr, dec)}</span>
             </div>
           ` : ''}
         </div>

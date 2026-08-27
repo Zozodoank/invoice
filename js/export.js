@@ -88,23 +88,30 @@ const ExportManager = {
   shareViaWhatsApp(invoice, totals) {
     const curr = invoice.currency || 'IDR';
     const lang = invoice.language || 'id';
+    const dec = invoice.useDecimals;
     
     let text = `*FAKTUR PENJUALAN / INVOICE*\n`;
     text += `--------------------------------\n`;
     text += `*No. Invoice:* ${invoice.number || '-'}\n`;
     text += `*Tanggal:* ${invoice.date || '-'}\n`;
-    text += `*Jatuh Tempo:* ${invoice.dueDate || '-'}\n`;
+    if (invoice.showDueDate !== false && invoice.dueDate) {
+      text += `*Jatuh Tempo:* ${invoice.dueDate}\n`;
+    }
+    if (invoice.showStatus !== false) {
+      const statusLabel = (invoice.status || 'PENDING').toUpperCase();
+      text += `*Status:* ${statusLabel}\n`;
+    }
     text += `*Kepada:* ${invoice.clientName || '-'}\n\n`;
 
     text += `*Rincian Item:*\n`;
     (invoice.items || []).forEach((item, idx) => {
-      text += `${idx + 1}. ${item.name} (${item.quantity} ${item.unit || ''}) = ${formatCurrency(calculateItemTotal(item), curr)}\n`;
+      text += `${idx + 1}. ${item.name} (${item.quantity} ${item.unit || ''}) = ${formatCurrency(calculateItemTotal(item), curr, dec)}\n`;
     });
 
-    text += `\n*Total Tagihan:* ${formatCurrency(totals.grandTotal, curr)}\n`;
+    text += `\n*Total Tagihan:* ${formatCurrency(totals.grandTotal, curr, dec)}\n`;
     if (totals.downPayment > 0) {
-      text += `*Uang Muka (DP):* -${formatCurrency(totals.downPayment, curr)}\n`;
-      text += `*Sisa Pembayaran:* ${formatCurrency(totals.balanceDue, curr)}\n`;
+      text += `*Uang Muka (DP):* -${formatCurrency(totals.downPayment, curr, dec)}\n`;
+      text += `*Sisa Pembayaran:* ${formatCurrency(totals.balanceDue, curr, dec)}\n`;
     }
 
     if (invoice.bankAccounts && invoice.bankAccounts.length > 0) {
@@ -139,13 +146,18 @@ const ExportManager = {
   shareViaEmail(invoice, totals) {
     const curr = invoice.currency || 'IDR';
     const email = invoice.clientEmail || '';
+    const dec = invoice.useDecimals;
     const subject = `Invoice ${invoice.number || ''} - ${invoice.senderName || 'Penagihan'}`;
     
     let body = `Halo ${invoice.clientName || 'Bapak/Ibu'},\n\n`;
     body += `Berikut adalah rincian tagihan untuk Invoice No: ${invoice.number || '-'}.\n\n`;
-    body += `Total Tagihan: ${formatCurrency(totals.grandTotal, curr)}\n`;
-    body += `Sisa Pembayaran: ${formatCurrency(totals.balanceDue, curr)}\n`;
-    body += `Tanggal Jatuh Tempo: ${invoice.dueDate || '-'}\n\n`;
+    body += `Total Tagihan: ${formatCurrency(totals.grandTotal, curr, dec)}\n`;
+    body += `Sisa Pembayaran: ${formatCurrency(totals.balanceDue, curr, dec)}\n`;
+    if (invoice.showDueDate !== false && invoice.dueDate) {
+      body += `Tanggal Jatuh Tempo: ${invoice.dueDate}\n\n`;
+    } else {
+      body += `\n`;
+    }
 
     if (invoice.bankAccounts && invoice.bankAccounts.length > 0) {
       body += `Detail Pembayaran Transfer:\n`;

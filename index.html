@@ -148,7 +148,13 @@
             </div>
 
             <div>
-              <label class="text-[11px] font-semibold text-slate-600 dark:text-slate-300 block mb-1">Mata Uang</label>
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-[11px] font-semibold text-slate-600 dark:text-slate-300">Mata Uang</label>
+                <label class="inline-flex items-center gap-1.5 cursor-pointer" title="Aktifkan atau nonaktifkan format 2 desimal (,00)">
+                  <input type="checkbox" id="toggle-use-decimals" class="w-3.5 h-3.5 text-blue-600 rounded cursor-pointer" />
+                  <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400">2 Desimal</span>
+                </label>
+              </div>
               <select id="select-currency" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none">
                 <option value="IDR">IDR (Rp - Rupiah)</option>
                 <option value="USD">USD ($ - Dollar)</option>
@@ -209,8 +215,14 @@
               <input type="text" id="input-title" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold" placeholder="INVOICE" />
             </div>
             <div>
-              <label class="text-[11px] font-semibold text-slate-600 dark:text-slate-300 block mb-1">Status Faktur</label>
-              <select id="select-status" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none">
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-[11px] font-semibold text-slate-600 dark:text-slate-300">Status Faktur</label>
+                <label class="inline-flex items-center gap-1.5 cursor-pointer" title="Aktifkan atau sembunyikan status faktur">
+                  <input type="checkbox" id="toggle-show-status" class="w-3.5 h-3.5 text-blue-600 rounded cursor-pointer" checked />
+                  <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400">Tampilkan</span>
+                </label>
+              </div>
+              <select id="select-status" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none transition-all">
                 <option value="pending">Menunggu Pembayaran (Pending)</option>
                 <option value="paid">Lunas (Paid)</option>
                 <option value="overdue">Jatuh Tempo (Overdue)</option>
@@ -237,8 +249,14 @@
               <input type="date" id="input-date" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold" />
             </div>
             <div>
-              <label class="text-[11px] font-semibold text-slate-600 dark:text-slate-300 block mb-1">Tanggal Jatuh Tempo</label>
-              <input type="date" id="input-due-date" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold" />
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-[11px] font-semibold text-slate-600 dark:text-slate-300">Tanggal Jatuh Tempo</label>
+                <label class="inline-flex items-center gap-1.5 cursor-pointer" title="Aktifkan atau sembunyikan tanggal jatuh tempo">
+                  <input type="checkbox" id="toggle-show-due-date" class="w-3.5 h-3.5 text-blue-600 rounded cursor-pointer" checked />
+                  <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400">Tampilkan</span>
+                </label>
+              </div>
+              <input type="date" id="input-due-date" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold transition-all" />
             </div>
           </div>
 
