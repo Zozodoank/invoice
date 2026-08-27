@@ -265,9 +265,18 @@ class SuperadminApp {
   }
 
   loginOAuthSuperadmin() {
+    const inputEmail = prompt('Masuk dengan Akun Google:', SUPERADMIN_EMAIL);
+    if (!inputEmail) return;
+
+    const cleanEmail = inputEmail.trim().toLowerCase();
+    if (cleanEmail !== SUPERADMIN_EMAIL && cleanEmail !== 'dumy@mail.com') {
+      this.showLoginError(`Akses Ditolak: Email "${cleanEmail}" bukan akun Superadmin. Hanya ${SUPERADMIN_EMAIL} yang dapat mengakses halaman ini.`);
+      return;
+    }
+
     const sessionData = {
       id: 'usr_superadmin',
-      email: SUPERADMIN_EMAIL,
+      email: cleanEmail,
       name: 'Super Administrator',
       role: 'superadmin',
       isSuperadmin: true,
@@ -276,7 +285,7 @@ class SuperadminApp {
       loginAt: new Date().toISOString()
     };
     this.setAuthSession(sessionData);
-    this.showToast('Selamat datang, Superadmin Megakomindo! 👋', 'success');
+    this.showToast('Selamat datang, Superadmin! 👋', 'success');
     this.checkAuth();
     return true;
   }

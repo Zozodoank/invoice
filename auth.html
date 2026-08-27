@@ -101,50 +101,19 @@
     <!-- Divider -->
     <div class="relative flex items-center justify-center">
       <div class="border-t border-slate-200 dark:border-slate-800 w-full"></div>
-      <span class="bg-white dark:bg-slate-900 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">Pilihan Cepat / Demo</span>
+      <span class="bg-white dark:bg-slate-900 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">atau dengan email</span>
     </div>
 
-    <!-- Quick Access Demo Buttons -->
-    <div class="space-y-2">
-      <!-- Superadmin Fast Login -->
-      <button id="btn-demo-superadmin" type="button" class="w-full p-2.5 rounded-xl border border-purple-200 dark:border-purple-800/80 bg-purple-50/60 dark:bg-purple-900/20 hover:bg-purple-100 text-left transition flex items-center justify-between group">
-        <div class="flex items-center gap-2.5">
-          <div class="w-7 h-7 rounded-lg bg-purple-600 text-white flex items-center justify-center">
-            <i data-lucide="shield-check" class="w-4 h-4"></i>
-          </div>
-          <div>
-            <div class="text-xs font-bold text-purple-900 dark:text-purple-300">Login Superadmin</div>
-            <div class="text-[10px] font-mono text-purple-600 dark:text-purple-400">megakomindo@gmail.com</div>
-          </div>
-        </div>
-        <span class="text-[10px] font-bold text-purple-600 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-purple-200 dark:border-purple-700 group-hover:bg-purple-600 group-hover:text-white transition">Masuk ➔</span>
-      </button>
-
-      <!-- Regular Pro User Fast Login -->
-      <button id="btn-demo-regular-user" type="button" class="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 text-left transition flex items-center justify-between group">
-        <div class="flex items-center gap-2.5">
-          <div class="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center">
-            <i data-lucide="user" class="w-4 h-4"></i>
-          </div>
-          <div>
-            <div class="text-xs font-bold text-slate-800 dark:text-slate-200">Login User Pro</div>
-            <div class="text-[10px] font-mono text-slate-400">budi.santoso@digitalabadi.co.id</div>
-          </div>
-        </div>
-        <span class="text-[10px] font-bold text-slate-500 bg-white dark:bg-slate-700 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-600 group-hover:bg-blue-600 group-hover:text-white transition">Masuk ➔</span>
-      </button>
-    </div>
-
-    <!-- Manual Email/Password Form (Simulated/Ready for backend) -->
-    <form id="manual-auth-form" class="space-y-3 pt-2">
+    <!-- Manual Email/Password Form (Simulated / Ready for SQLite backend) -->
+    <form id="manual-auth-form" class="space-y-3">
       <div id="field-register-name" class="hidden">
         <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Nama Lengkap</label>
-        <input type="text" id="input-auth-name" placeholder="John Doe" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500" />
+        <input type="text" id="input-auth-name" placeholder="Nama Lengkap Anda" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500" />
       </div>
 
       <div>
         <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Alamat Email</label>
-        <input type="email" id="input-auth-email" required placeholder="user@domain.com" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium font-mono outline-none focus:ring-2 focus:ring-blue-500" />
+        <input type="email" id="input-auth-email" required placeholder="nama@email.com" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium font-mono outline-none focus:ring-2 focus:ring-blue-500" />
       </div>
 
       <div>
@@ -214,9 +183,9 @@
       }
     }
 
-    // Google OAuth simulation on button click
+    // Google OAuth simulation / prompt on button click
     document.getElementById('btn-google-oauth')?.addEventListener('click', () => {
-      const promptEmail = prompt('Masukkan alamat email Google Anda untuk login OAuth:', 'megakomindo@gmail.com');
+      const promptEmail = prompt('Masukkan akun Google Anda (contoh: megakomindo@gmail.com atau email Anda):', 'megakomindo@gmail.com');
       if (promptEmail) {
         const user = AuthManager.loginDemo(promptEmail, promptEmail.split('@')[0]);
         handleLoginSuccess(user);
@@ -230,18 +199,6 @@
         handleLoginSuccess(user);
       }
     };
-
-    // Fast Superadmin Login
-    document.getElementById('btn-demo-superadmin')?.addEventListener('click', () => {
-      const user = AuthManager.loginDemo('megakomindo@gmail.com', 'Super Administrator', 'superadmin');
-      handleLoginSuccess(user);
-    });
-
-    // Fast Regular User Login
-    document.getElementById('btn-demo-regular-user')?.addEventListener('click', () => {
-      const user = AuthManager.loginDemo('budi.santoso@digitalabadi.co.id', 'Budi Santoso', 'user');
-      handleLoginSuccess(user);
-    });
 
     // Manual Form submit
     document.getElementById('manual-auth-form')?.addEventListener('submit', (e) => {
