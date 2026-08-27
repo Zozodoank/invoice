@@ -60,11 +60,14 @@ body {
 
 /* Print Specific Rules */
 @media print {
-  body {
+  html, body {
     background: #ffffff !important;
     color: #000000 !important;
     padding: 0 !important;
     margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
@@ -72,47 +75,84 @@ body {
   /* Hide all UI elements except the invoice paper */
   .no-print,
   #app-header,
+  #editor-pane,
   #app-sidebar,
   #preview-controls,
   #history-modal,
   #toast-container,
   button,
+  form,
+  aside,
   .action-bar {
     display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
   }
 
   #main-content {
     display: block !important;
     width: 100% !important;
+    height: auto !important;
     padding: 0 !important;
     margin: 0 !important;
     overflow: visible !important;
+    border: none !important;
   }
 
   #preview-pane {
+    display: block !important;
     width: 100% !important;
     height: auto !important;
     overflow: visible !important;
     padding: 0 !important;
     margin: 0 !important;
-    background: transparent !important;
+    background: #ffffff !important;
+    border: none !important;
+  }
+
+  .dark html,
+  .dark body,
+  .dark #main-content,
+  .dark #preview-pane,
+  .dark .invoice-paper-wrapper {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .invoice-paper-wrapper {
+    display: block !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 
   .invoice-paper {
     width: 100% !important;
+    max-width: 100% !important;
     min-height: auto !important;
     box-shadow: none !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     padding: 0 !important;
     border: none !important;
     transform: none !important;
+    background: #ffffff !important;
     page-break-after: avoid;
     page-break-inside: avoid;
   }
 
+  .invoice-paper.receipt-format {
+    width: 80mm !important;
+    max-width: 80mm !important;
+    margin: 0 auto !important;
+  }
+
   @page {
-    size: A4 portrait;
-    margin: 10mm 12mm 10mm 12mm;
+    size: auto;
+    margin: 0;
   }
 }
 
