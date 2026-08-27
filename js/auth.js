@@ -40,6 +40,44 @@ const AuthManager = {
   },
 
   /**
+   * Check if watermark ("CONTOH INVOICE") should be displayed.
+   * Watermark is shown if:
+   * 1. User is NOT logged in, OR
+   * 2. Logged-in user has an inactive / expired / suspended subscription or Free plan.
+   * Superadmin and active Pro/Enterprise users have NO watermark.
+   */
+  shouldShowWatermark() {
+    const user = this.getUser();
+    
+    // 1. Not logged in -> Watermark ACTIVE
+    if (!user) return true;
+
+    // 2. Superadmin -> Watermark INACTIVE
+    if (this.isSuperadmin()) return false;
+
+    // 3. Subscription Status Check
+    if (user.subscriptionStatus === 'inactive' || user.subscriptionStatus === 'suspended' || user.subscriptionStatus === 'expired') {
+      return true;
+    }
+
+    // 4. Free plan without paid subscription -> Watermark ACTIVE
+    if (user.plan === 'free') {
+      return true;
+    }
+
+    // 5. Expiration date check
+    if (user.expiresAt) {
+      const expiry = new Date(user.expiresAt);
+      if (expiry < new Date()) {
+        return true;
+      }
+    }
+
+    // Active paid subscriber (Pro / Enterprise) -> Watermark INACTIVE
+    return false;
+  },
+
+  /**
    * Save user session
    */
   setUser(userData) {
@@ -49,6 +87,7 @@ const AuthManager = {
       isSuperadmin: isSuper,
       role: isSuper ? 'superadmin' : (userData.role || 'user'),
       plan: isSuper ? 'enterprise' : (userData.plan || 'pro'),
+      subscriptionStatus: isSuper ? 'active' : (userData.subscriptionStatus || 'active'),
       loginAt: new Date().toISOString()
     };
 

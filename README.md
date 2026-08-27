@@ -64,8 +64,16 @@ Cukup buka file `index.html` langsung di browser favorit Anda (Google Chrome, Mi
     - Nyaman digunakan di layar desktop, laptop, tablet, maupun smartphone.
     - Toggle mode gelap (Dark Mode) dan mode terang (Light Mode).
 
-11. **Portal Superadmin Khusus (`superadmin.html`)**:
-    - Akses terbatas khusus Superadmin (`megakomindo@gmail.com`) dengan verifikasi PIN master.
+11. **Portal Superadmin & Autentikasi Google OAuth (`superadmin.html` & `auth.html`)**:
+    - Akses Superadmin otomatis dan eksklusif untuk `megakomindo@gmail.com` via Google OAuth tanpa perlu PIN.
     - Dashboard metrik pengguna, estimasi MRR (Monthly Recurring Revenue), dan status langganan.
     - Manajemen paket langganan (*Free Starter, Pro Member, Enterprise*).
     - CRUD data pengguna, perpanjangan masa aktif (1 bln, 3 bln, 6 bln, 1 thn, lifetime), penangguhan akun (suspend/activate), dan ekspor data backup.
+
+12. **Proteksi Watermark Pintar ("CONTOH INVOICE")**:
+    - Faktur menampilkan watermark besar diagonal *"CONTOH INVOICE"* secara otomatis ketika pengguna **belum login** atau **status langganan tidak aktif/expired/free**.
+    - Watermark terproteksi secara konsisten pada tampilan layar, berkas unduhan PDF (`html2pdf`), hasil cetak (*Print Preview* A4), serta teks pesan WhatsApp dan Email.
+    - Pengguna aktif berbayar (*Pro / Enterprise*) dan Superadmin otomatis bebas watermark.
+
+13. **Integrasi Cloudflare D1 (SQLite Database)**:
+    - Skema database serverless SQLite lengkap pada `cloudflare_d1_schema.sql` siap eksekusi via Cloudflare Wrangler CLI.

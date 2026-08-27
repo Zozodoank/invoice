@@ -17,7 +17,7 @@ const DEFAULT_PLANS = [
     interval: 'Bulan',
     maxInvoices: 5,
     templates: ['Modern Slate'],
-    features: ['5 Invoice/Bulan', 'Template Standar', 'Export PDF Dasar', '1 Rekening Bank'],
+    features: ['5 Invoice/Bulan', 'Template Standar', 'Watermark CONTOH INVOICE', '1 Rekening Bank'],
     badgeClass: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
     color: '#64748b'
   },
@@ -28,7 +28,7 @@ const DEFAULT_PLANS = [
     interval: 'Bulan',
     maxInvoices: -1, // Unlimited
     templates: ['Semua (5 Template)'],
-    features: ['Unlimited Invoice', 'Semua 5 Desain Template', 'QR Code & E-Wallet', 'Tanda Tangan Digital', 'Kirim WhatsApp & Email', 'Tanpa Watermark'],
+    features: ['Unlimited Invoice', 'Semua 5 Desain Template', 'Bebas Watermark', 'QR Code & E-Wallet', 'Tanda Tangan Digital', 'Kirim WhatsApp & Email'],
     badgeClass: 'bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700',
     color: '#2563eb'
   },
@@ -39,7 +39,7 @@ const DEFAULT_PLANS = [
     interval: 'Bulan',
     maxInvoices: -1,
     templates: ['Semua Template + Kustom'],
-    features: ['Multi-User Tenant', 'Custom Domain & Logo', 'White-label PDF', 'API & Webhooks', 'Prioritas Support 24/7', 'Database Cloud Backup'],
+    features: ['Multi-User Tenant', 'Bebas Watermark & White-label', 'Custom Domain & Logo', 'API & Webhooks', 'Prioritas Support 24/7', 'Database Cloud Backup'],
     badgeClass: 'bg-purple-50 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-700',
     color: '#9333ea'
   }

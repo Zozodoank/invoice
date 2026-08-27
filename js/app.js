@@ -749,6 +749,7 @@ class InvoiceApp {
 
     window.addEventListener('auth:change', () => {
       this.updateAuthNavUI();
+      this.renderInvoice();
       if (typeof lucide !== 'undefined') lucide.createIcons();
     });
   }

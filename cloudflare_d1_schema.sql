@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
     oauth_provider TEXT DEFAULT 'google',
     oauth_id TEXT,
     is_superadmin INTEGER DEFAULT 0, -- 1: Superadmin, 0: Normal User
+    subscription_status TEXT DEFAULT 'inactive' CHECK(subscription_status IN ('active', 'inactive', 'expired', 'suspended')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS plans (
     can_use_qr INTEGER DEFAULT 0,
     can_use_signature INTEGER DEFAULT 0,
     can_export_whatsapp INTEGER DEFAULT 1,
+    has_watermark INTEGER DEFAULT 1, -- 1: Muncul Watermark 'CONTOH INVOICE', 0: Bebas Watermark
     is_active INTEGER DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -47,7 +49,8 @@ CREATE TABLE IF NOT EXISTS tenants (
     slug TEXT UNIQUE NOT NULL,
     logo_url TEXT,
     plan TEXT DEFAULT 'free' CHECK(plan IN ('free', 'pro', 'enterprise')),
-    subscription_expires_at DATETIME, -- NULL untuk Free / Lifetime
+    subscription_status TEXT DEFAULT 'inactive' CHECK(subscription_status IN ('active', 'inactive', 'expired', 'suspended')),
+    subscription_expires_at DATETIME, -- NULL untuk Free / Expired
     is_active INTEGER DEFAULT 1, -- 1: Aktif, 0: Suspended
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -94,6 +97,7 @@ CREATE TABLE IF NOT EXISTS invoices (
     status TEXT DEFAULT 'pending' CHECK(status IN ('draft', 'pending', 'paid', 'overdue', 'cancelled')),
     show_status INTEGER DEFAULT 1,
     use_decimals INTEGER DEFAULT 0,
+    has_watermark INTEGER DEFAULT 1, -- 1: Ada watermark CONTOH INVOICE jika belum login / subscription inactive
     
     -- Branding & Desain
     template TEXT DEFAULT 'modern',
@@ -179,6 +183,7 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_is_superadmin ON users(is_superadmin);
 CREATE INDEX IF NOT EXISTS idx_tenants_owner_id ON tenants(owner_id);
 CREATE INDEX IF NOT EXISTS idx_tenants_plan ON tenants(plan);
+CREATE INDEX IF NOT EXISTS idx_tenants_sub_status ON tenants(subscription_status);
 CREATE INDEX IF NOT EXISTS idx_invoices_tenant_id ON invoices(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_user_id ON invoices(user_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
@@ -187,36 +192,38 @@ CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_id ON invoice_items(invoice
 CREATE INDEX IF NOT EXISTS idx_clients_tenant_id ON clients(tenant_id);
 
 -- ==============================================================================
--- SEED DATA PAKET DEFAULT
+-- SEED DATA PAKET DEFAULT DENGAN ATRIBUT WATERMARK
 -- ==============================================================================
-INSERT OR IGNORE INTO plans (id, name, price, billing_interval, max_invoices_per_month, max_templates, can_use_qr, can_use_signature, can_export_whatsapp)
+INSERT OR IGNORE INTO plans (id, name, price, billing_interval, max_invoices_per_month, max_templates, can_use_qr, can_use_signature, can_export_whatsapp, has_watermark)
 VALUES 
-    ('free', 'Free Starter', 0, 'month', 5, 1, 0, 0, 1),
-    ('pro', 'Pro Member', 79000, 'month', -1, 5, 1, 1, 1),
-    ('enterprise', 'Enterprise / Agency', 249000, 'month', -1, 5, 1, 1, 1);
+    ('free', 'Free Starter', 0, 'month', 5, 1, 0, 0, 1, 1), -- Watermark 'CONTOH INVOICE' Aktif
+    ('pro', 'Pro Member', 79000, 'month', -1, 5, 1, 1, 1, 0), -- Bebas Watermark
+    ('enterprise', 'Enterprise / Agency', 249000, 'month', -1, 5, 1, 1, 1, 0); -- Bebas Watermark
 
 -- ==============================================================================
 -- SEED DATA DUMMY SUPERADMIN
 -- CATATAN: Email 'dumy@mail.com' di bawah ini adalah placeholder.
 -- Anda dapat mengubahnya ke email Superadmin asli Anda (misal: megakomindo@gmail.com) di Cloudflare D1.
 -- ==============================================================================
-INSERT OR IGNORE INTO users (id, email, name, avatar_url, phone, is_superadmin)
+INSERT OR IGNORE INTO users (id, email, name, avatar_url, phone, is_superadmin, subscription_status)
 VALUES (
     'usr_superadmin_dummy',
     'dumy@mail.com',
     'Super Administrator',
     'https://api.dicebear.com/7.x/bottts/svg?seed=SuperAdmin',
     '0812-3456-7890',
-    1
+    1,
+    'active'
 );
 
-INSERT OR IGNORE INTO tenants (id, owner_id, name, slug, plan, subscription_expires_at, is_active)
+INSERT OR IGNORE INTO tenants (id, owner_id, name, slug, plan, subscription_status, subscription_expires_at, is_active)
 VALUES (
     'ten_superadmin_dummy',
     'usr_superadmin_dummy',
     'Master Superadmin Workspace',
     'master-superadmin-workspace',
     'enterprise',
+    'active',
     '2099-12-31 23:59:59',
     1
 );

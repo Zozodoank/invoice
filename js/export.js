@@ -89,8 +89,15 @@ const ExportManager = {
     const curr = invoice.currency || 'IDR';
     const lang = invoice.language || 'id';
     const dec = invoice.useDecimals;
+    const hasWatermark = typeof window.AuthManager !== 'undefined' ? window.AuthManager.shouldShowWatermark() : true;
     
-    let text = `*FAKTUR PENJUALAN / INVOICE*\n`;
+    let text = '';
+    if (hasWatermark) {
+      text += `⚠️ *[CONTOH INVOICE / SAMPLE]* ⚠️\n`;
+      text += `_(Dibuat via InvoiceCraft - Belum Login / Berlangganan Aktif)_\n\n`;
+    }
+
+    text += `*FAKTUR PENJUALAN / INVOICE*\n`;
     text += `--------------------------------\n`;
     text += `*No. Invoice:* ${invoice.number || '-'}\n`;
     text += `*Tanggal:* ${invoice.date || '-'}\n`;
@@ -125,6 +132,10 @@ const ExportManager = {
       text += `\n*Catatan:* ${invoice.notes}\n`;
     }
 
+    if (hasWatermark) {
+      text += `\n📌 *Catatan:* Dokumen ini adalah *CONTOH INVOICE* (Watermark aktif).\n`;
+    }
+
     text += `\nTerima kasih! 🙏\n_${invoice.senderName || 'Kami'}_`;
 
     // Clean phone number (e.g. 0812... -> 62812...)
@@ -147,9 +158,17 @@ const ExportManager = {
     const curr = invoice.currency || 'IDR';
     const email = invoice.clientEmail || '';
     const dec = invoice.useDecimals;
-    const subject = `Invoice ${invoice.number || ''} - ${invoice.senderName || 'Penagihan'}`;
+    const hasWatermark = typeof window.AuthManager !== 'undefined' ? window.AuthManager.shouldShowWatermark() : true;
+    const prefix = hasWatermark ? '[CONTOH INVOICE] ' : '';
+    const subject = `${prefix}Invoice ${invoice.number || ''} - ${invoice.senderName || 'Penagihan'}`;
     
-    let body = `Halo ${invoice.clientName || 'Bapak/Ibu'},\n\n`;
+    let body = '';
+    if (hasWatermark) {
+      body += `⚠️ [DOKUMEN CONTOH INVOICE / WATERMARK AKTIF]\n`;
+      body += `(Dibuat via InvoiceCraft - Belum Login / Berlangganan Aktif)\n\n`;
+    }
+
+    body += `Halo ${invoice.clientName || 'Bapak/Ibu'},\n\n`;
     body += `Berikut adalah rincian tagihan untuk Invoice No: ${invoice.number || '-'}.\n\n`;
     body += `Total Tagihan: ${formatCurrency(totals.grandTotal, curr, dec)}\n`;
     body += `Sisa Pembayaran: ${formatCurrency(totals.balanceDue, curr, dec)}\n`;
@@ -165,6 +184,10 @@ const ExportManager = {
         body += `- ${bank.bankName}: ${bank.accountNumber} (a.n. ${bank.accountHolder})\n`;
       });
       body += `\n`;
+    }
+
+    if (hasWatermark) {
+      body += `Catatan: Faktur ini merupakan CONTOH INVOICE.\n\n`;
     }
 
     body += `Terima kasih atas kerja samanya.\n\nSalam,\n${invoice.senderName || ''}`;

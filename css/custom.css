@@ -194,3 +194,34 @@ body {
 .border-theme-accent {
   border-color: var(--primary-color) !important;
 }
+
+/* Watermark Overlay Styles (Screen, PDF & Print) */
+.invoice-watermark-overlay {
+  position: absolute !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  z-index: 20 !important;
+  overflow: hidden !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.invoice-watermark-badge {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+@media print {
+  .invoice-watermark-overlay {
+    display: flex !important;
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 20 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

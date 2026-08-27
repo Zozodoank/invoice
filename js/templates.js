@@ -67,6 +67,31 @@ const InvoiceTemplates = {
   },
 
   /**
+   * Helper to render large watermark "CONTOH INVOICE"
+   * Displayed when user is NOT logged in or has inactive subscription
+   */
+  renderWatermark(invoice) {
+    const showWatermark = invoice && invoice.showWatermark !== undefined
+      ? invoice.showWatermark
+      : (typeof window.AuthManager !== 'undefined' ? window.AuthManager.shouldShowWatermark() : true);
+
+    if (!showWatermark) return '';
+
+    return `
+      <div class="invoice-watermark-overlay pointer-events-none select-none absolute inset-0 z-20 overflow-hidden flex items-center justify-center" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 20; overflow: hidden; user-select: none;">
+        <div class="invoice-watermark-badge text-center" style="transform: rotate(-35deg); text-align: center; border: 4px dashed rgba(225, 29, 72, 0.35); padding: 16px 40px; border-radius: 20px; background-color: rgba(255, 255, 255, 0.2);">
+          <div style="font-size: 42px; font-weight: 900; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(225, 29, 72, 0.32); font-family: 'Outfit', sans-serif; line-height: 1; white-space: nowrap;">
+            CONTOH INVOICE
+          </div>
+          <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(225, 29, 72, 0.32); font-family: 'Inter', sans-serif; margin-top: 4px;">
+            DIBUAT DENGAN INVOICECRAFT • SAMPLE
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /**
    * TEMPLATE 1: Modern Slate (Default Clean & Bold)
    */
   modern(invoice, totals) {
@@ -76,7 +101,8 @@ const InvoiceTemplates = {
     const dec = invoice.useDecimals;
     
     return `
-      <div class="p-8 sm:p-12 text-slate-800 bg-white flex flex-col justify-between min-h-[297mm]">
+      <div class="relative overflow-hidden p-8 sm:p-12 text-slate-800 bg-white flex flex-col justify-between min-h-[297mm]">
+        ${this.renderWatermark(invoice)}
         <div>
           <!-- Header Area -->
           <div class="flex justify-between items-start pb-6 border-b border-slate-200">
@@ -283,7 +309,8 @@ const InvoiceTemplates = {
     const dec = invoice.useDecimals;
     
     return `
-      <div class="p-8 sm:p-12 text-zinc-900 bg-white flex flex-col justify-between min-h-[297mm]">
+      <div class="relative overflow-hidden p-8 sm:p-12 text-zinc-900 bg-white flex flex-col justify-between min-h-[297mm]">
+        ${this.renderWatermark(invoice)}
         <div>
           <!-- Minimalist Header -->
           <div class="flex justify-between items-start pb-8 border-b-2 border-zinc-900">
@@ -437,7 +464,8 @@ const InvoiceTemplates = {
     const dec = invoice.useDecimals;
     
     return `
-      <div class="text-slate-800 bg-white flex flex-col justify-between min-h-[297mm]">
+      <div class="relative overflow-hidden text-slate-800 bg-white flex flex-col justify-between min-h-[297mm]">
+        ${this.renderWatermark(invoice)}
         <div>
           <!-- Executive Top Header Banner -->
           <div class="p-8 sm:px-12 text-white flex justify-between items-center" style="background-color: ${accent}">
@@ -599,7 +627,8 @@ const InvoiceTemplates = {
     const dec = invoice.useDecimals;
     
     return `
-      <div class="p-8 sm:p-12 text-slate-800 bg-white flex flex-col justify-between min-h-[297mm]">
+      <div class="relative overflow-hidden p-8 sm:p-12 text-slate-800 bg-white flex flex-col justify-between min-h-[297mm]">
+        ${this.renderWatermark(invoice)}
         <div>
           <!-- Creative Header -->
           <div class="relative p-6 rounded-2xl text-white overflow-hidden shadow-sm" style="background: linear-gradient(135deg, ${accent}, #3b82f6)">
@@ -764,7 +793,8 @@ const InvoiceTemplates = {
     const dec = invoice.useDecimals;
     
     return `
-      <div class="p-4 text-slate-900 bg-white font-mono text-[11px] leading-relaxed max-w-[80mm] mx-auto">
+      <div class="relative overflow-hidden p-4 text-slate-900 bg-white font-mono text-[11px] leading-relaxed max-w-[80mm] mx-auto">
+        ${this.renderWatermark(invoice)}
         <!-- Header Center -->
         <div class="text-center pb-3 border-b border-dashed border-slate-400">
           ${invoice.logoUrl ? `
