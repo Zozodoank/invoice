@@ -332,7 +332,7 @@ DECLARE
     is_user_superadmin BOOLEAN := false;
 BEGIN
     -- Cek apakah email yang mendaftar adalah email Superadmin utama
-    IF NEW.email = 'jho.j80@gmail.com' THEN
+    IF NEW.email = 'megakomindo@gmail.com' THEN
         is_user_superadmin := true;
     END IF;
 

@@ -115,14 +115,17 @@ function calculateInvoiceTotals(invoice) {
     subtotal += calculateItemTotal(item);
   });
   
-  // Global Discount
+  // Global Discount (with enable/disable support)
   let globalDiscount = 0;
-  if (invoice.discountType === 'percent') {
-    globalDiscount = subtotal * ((Number(invoice.discountValue) || 0) / 100);
-  } else {
-    globalDiscount = Number(invoice.discountValue) || 0;
+  const isDiscountEnabled = invoice.enableDiscount !== false;
+  if (isDiscountEnabled) {
+    if (invoice.discountType === 'percent') {
+      globalDiscount = subtotal * ((Number(invoice.discountValue) || 0) / 100);
+    } else {
+      globalDiscount = Number(invoice.discountValue) || 0;
+    }
+    globalDiscount = Math.min(subtotal, Math.max(0, globalDiscount));
   }
-  globalDiscount = Math.min(subtotal, Math.max(0, globalDiscount));
   
   const taxableAmount = Math.max(0, subtotal - globalDiscount);
   

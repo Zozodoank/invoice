@@ -77,9 +77,14 @@
         <i data-lucide="folder-clock" class="w-3.5 h-3.5 text-indigo-500"></i>
         <span>Riwayat</span>
       </button>
+      <!-- Superadmin Link (Only visible when logged in as megakomindo@gmail.com) -->
+      <a id="btn-header-superadmin" href="superadmin.html" class="hidden px-3 py-1.5 text-xs font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition flex items-center gap-1.5" title="Portal Khusus Superadmin (megakomindo@gmail.com)">
+        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-purple-500"></i>
+        <span>Superadmin</span>
+      </a>
     </div>
 
-    <!-- Right Export & Theme Buttons -->
+    <!-- Right Export, Theme & Auth Buttons -->
     <div class="flex items-center gap-2">
       <!-- Dark Mode Toggle -->
       <button id="btn-theme-toggle" type="button" class="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition" title="Toggle Tema Gelap/Terang">
@@ -104,6 +109,24 @@
         <i data-lucide="download" class="w-3.5 h-3.5"></i>
         <span>Unduh PDF</span>
       </button>
+
+      <!-- User Account / OAuth Login Badge -->
+      <div id="auth-nav-container" class="flex items-center">
+        <a id="btn-header-login" href="auth.html" class="px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5">
+          <i data-lucide="log-in" class="w-3.5 h-3.5 text-blue-500"></i>
+          <span class="hidden sm:inline">Masuk</span>
+        </a>
+        <div id="user-profile-badge" class="hidden items-center gap-2 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+          <div id="user-avatar-initials" class="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-[10px]">U</div>
+          <div class="hidden xl:block text-left">
+            <span id="user-display-name" class="font-bold text-slate-800 dark:text-slate-200 block text-[11px] leading-tight truncate max-w-[90px]">User</span>
+            <span id="user-display-role" class="text-[9px] text-purple-600 dark:text-purple-400 font-bold block">Pro</span>
+          </div>
+          <button id="btn-user-logout" type="button" class="text-slate-400 hover:text-rose-500 p-0.5" title="Keluar">
+            <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -357,8 +380,14 @@
 
           <div class="grid grid-cols-2 gap-3 text-xs">
             <div>
-              <label class="text-[11px] font-semibold text-slate-600 dark:text-slate-300 block mb-1">Diskon Global</label>
-              <div class="flex">
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-[11px] font-semibold text-slate-600 dark:text-slate-300">Diskon Global</label>
+                <label class="inline-flex items-center gap-1.5 cursor-pointer" title="Aktifkan atau nonaktifkan diskon global">
+                  <input type="checkbox" id="toggle-enable-discount" class="w-3.5 h-3.5 text-blue-600 rounded cursor-pointer" checked />
+                  <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400">Aktifkan</span>
+                </label>
+              </div>
+              <div id="discount-input-group" class="flex transition-all duration-200">
                 <input type="number" min="0" step="any" id="input-discount-value" class="w-full px-2.5 py-1.5 rounded-l-xl border border-r-0 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono-num" value="0" />
                 <select id="select-discount-type" class="px-2 py-1.5 rounded-r-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-700 font-semibold outline-none">
                   <option value="percent">%</option>
@@ -614,6 +643,7 @@
   <div id="toast-container" class="no-print fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- Application Logic Modules -->
+  <script src="js/auth.js"></script>
   <script src="js/calculations.js"></script>
   <script src="js/templates.js"></script>
   <script src="js/signature.js"></script>

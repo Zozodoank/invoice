@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Masuk & Daftar Akun | Invoice Generator Pro</title>
+  <meta name="description" content="Masuk atau daftar akun Invoice Generator Pro dengan Google OAuth untuk mengelola faktur, subscription, dan database Cloudflare D1.">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            heading: ['Outfit', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Google Identity Services (GSI) OAuth SDK -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/custom.css">
+</head>
+<body class="h-full bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col justify-center items-center p-4 antialiased selection:bg-blue-500 selection:text-white transition-colors duration-200">
+
+  <!-- Floating Theme Toggle & Back Button -->
+  <div class="fixed top-4 right-4 z-40 flex items-center gap-2">
+    <a href="index.html" class="px-3 py-1.5 text-xs font-semibold rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 shadow-sm transition flex items-center gap-1.5">
+      <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+      <span>Kembali ke App</span>
+    </a>
+    <button id="btn-theme-toggle" type="button" class="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50 shadow-sm transition" title="Toggle Tema Gelap/Terang">
+      <i data-lucide="moon" class="w-4 h-4 hidden dark:block"></i>
+      <i data-lucide="sun" class="w-4 h-4 block dark:hidden"></i>
+    </button>
+  </div>
+
+  <!-- Main Auth Card Container -->
+  <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-6 animate-fade-in relative overflow-hidden">
+    
+    <!-- Top Accent Stripe -->
+    <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600"></div>
+
+    <!-- Header Brand -->
+    <div class="text-center space-y-2 pt-2">
+      <div class="w-12 h-12 mx-auto rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-extrabold shadow-lg shadow-blue-500/25">
+        <i data-lucide="receipt-text" class="w-6 h-6"></i>
+      </div>
+      <h1 class="font-heading font-extrabold text-2xl text-slate-900 dark:text-white tracking-tight">InvoiceCraft</h1>
+      <p class="text-xs text-slate-500 dark:text-slate-400">Masuk untuk sinkronisasi faktur, cloud database & subscription</p>
+    </div>
+
+    <!-- Tabs: Masuk / Daftar -->
+    <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700/70 text-xs font-bold">
+      <button id="tab-login" type="button" class="flex-1 py-2 rounded-lg bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm transition">
+        Masuk (Login)
+      </button>
+      <button id="tab-register" type="button" class="flex-1 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 transition">
+        Daftar (Register)
+      </button>
+    </div>
+
+    <!-- OAuth Google Primary Action Section -->
+    <div class="space-y-3">
+      <!-- Google Sign In Button (Custom Styled) -->
+      <button id="btn-google-oauth" type="button" class="w-full py-3 px-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 font-bold text-xs shadow-sm hover:shadow transition flex items-center justify-center gap-3">
+        <!-- Official Google SVG Icon -->
+        <svg class="w-4 h-4" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+        </svg>
+        <span id="google-btn-text">Lanjutkan dengan Akun Google</span>
+      </button>
+
+      <!-- Native Google GIS wrapper -->
+      <div id="g_id_onload"
+           data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+           data-callback="handleGoogleCredentialResponse"
+           data-auto_prompt="false">
+      </div>
+    </div>
+
+    <!-- Divider -->
+    <div class="relative flex items-center justify-center">
+      <div class="border-t border-slate-200 dark:border-slate-800 w-full"></div>
+      <span class="bg-white dark:bg-slate-900 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">Pilihan Cepat / Demo</span>
+    </div>
+
+    <!-- Quick Access Demo Buttons -->
+    <div class="space-y-2">
+      <!-- Superadmin Fast Login -->
+      <button id="btn-demo-superadmin" type="button" class="w-full p-2.5 rounded-xl border border-purple-200 dark:border-purple-800/80 bg-purple-50/60 dark:bg-purple-900/20 hover:bg-purple-100 text-left transition flex items-center justify-between group">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-lg bg-purple-600 text-white flex items-center justify-center">
+            <i data-lucide="shield-check" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-purple-900 dark:text-purple-300">Login Superadmin</div>
+            <div class="text-[10px] font-mono text-purple-600 dark:text-purple-400">megakomindo@gmail.com</div>
+          </div>
+        </div>
+        <span class="text-[10px] font-bold text-purple-600 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-purple-200 dark:border-purple-700 group-hover:bg-purple-600 group-hover:text-white transition">Masuk ➔</span>
+      </button>
+
+      <!-- Regular Pro User Fast Login -->
+      <button id="btn-demo-regular-user" type="button" class="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 text-left transition flex items-center justify-between group">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center">
+            <i data-lucide="user" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-slate-800 dark:text-slate-200">Login User Pro</div>
+            <div class="text-[10px] font-mono text-slate-400">budi.santoso@digitalabadi.co.id</div>
+          </div>
+        </div>
+        <span class="text-[10px] font-bold text-slate-500 bg-white dark:bg-slate-700 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-600 group-hover:bg-blue-600 group-hover:text-white transition">Masuk ➔</span>
+      </button>
+    </div>
+
+    <!-- Manual Email/Password Form (Simulated/Ready for backend) -->
+    <form id="manual-auth-form" class="space-y-3 pt-2">
+      <div id="field-register-name" class="hidden">
+        <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Nama Lengkap</label>
+        <input type="text" id="input-auth-name" placeholder="John Doe" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+
+      <div>
+        <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Alamat Email</label>
+        <input type="email" id="input-auth-email" required placeholder="user@domain.com" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium font-mono outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+
+      <div>
+        <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Kata Sandi</label>
+        <input type="password" id="input-auth-password" required placeholder="••••••••" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+
+      <button type="submit" id="btn-submit-manual" class="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition flex items-center justify-center gap-1.5">
+        <i data-lucide="log-in" class="w-3.5 h-3.5"></i>
+        <span id="manual-submit-text">Masuk ke Akun</span>
+      </button>
+    </form>
+
+    <div class="text-center text-[11px] text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
+      Database Cloudflare D1 (SQLite) • Hak Akses Superadmin Otomatis
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Scripts -->
+  <script src="js/auth.js"></script>
+  <script>
+    // Theme setup
+    const isDark = localStorage.getItem('invoicecraft_theme') === 'dark' ||
+      (!('invoicecraft_theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (isDark) document.documentElement.classList.add('dark');
+
+    document.getElementById('btn-theme-toggle')?.addEventListener('click', () => {
+      const dark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('invoicecraft_theme', dark ? 'dark' : 'light');
+    });
+
+    // Tab Switching (Masuk vs Daftar)
+    let isRegister = false;
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+    const fieldName = document.getElementById('field-register-name');
+    const submitText = document.getElementById('manual-submit-text');
+    const googleBtnText = document.getElementById('google-btn-text');
+
+    tabLogin.addEventListener('click', () => {
+      isRegister = false;
+      tabLogin.className = "flex-1 py-2 rounded-lg bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm transition";
+      tabRegister.className = "flex-1 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 transition";
+      fieldName.classList.add('hidden');
+      submitText.textContent = "Masuk ke Akun";
+      googleBtnText.textContent = "Lanjutkan dengan Akun Google";
+    });
+
+    tabRegister.addEventListener('click', () => {
+      isRegister = true;
+      tabRegister.className = "flex-1 py-2 rounded-lg bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm transition";
+      tabLogin.className = "flex-1 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 transition";
+      fieldName.classList.remove('hidden');
+      submitText.textContent = "Daftar Akun Baru";
+      googleBtnText.textContent = "Daftar Cepat dengan Google";
+    });
+
+    // Helper redirect after login
+    function handleLoginSuccess(user) {
+      if (user.isSuperadmin) {
+        window.location.href = 'superadmin.html';
+      } else {
+        window.location.href = 'index.html';
+      }
+    }
+
+    // Google OAuth simulation on button click
+    document.getElementById('btn-google-oauth')?.addEventListener('click', () => {
+      const promptEmail = prompt('Masukkan alamat email Google Anda untuk login OAuth:', 'megakomindo@gmail.com');
+      if (promptEmail) {
+        const user = AuthManager.loginDemo(promptEmail, promptEmail.split('@')[0]);
+        handleLoginSuccess(user);
+      }
+    });
+
+    // Global callback for Google GIS SDK token
+    window.handleGoogleCredentialResponse = (response) => {
+      const user = AuthManager.handleGoogleResponse(response);
+      if (user) {
+        handleLoginSuccess(user);
+      }
+    };
+
+    // Fast Superadmin Login
+    document.getElementById('btn-demo-superadmin')?.addEventListener('click', () => {
+      const user = AuthManager.loginDemo('megakomindo@gmail.com', 'Super Administrator', 'superadmin');
+      handleLoginSuccess(user);
+    });
+
+    // Fast Regular User Login
+    document.getElementById('btn-demo-regular-user')?.addEventListener('click', () => {
+      const user = AuthManager.loginDemo('budi.santoso@digitalabadi.co.id', 'Budi Santoso', 'user');
+      handleLoginSuccess(user);
+    });
+
+    // Manual Form submit
+    document.getElementById('manual-auth-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const email = document.getElementById('input-auth-email').value.trim();
+      const name = document.getElementById('input-auth-name')?.value.trim() || email.split('@')[0];
+      const user = AuthManager.loginDemo(email, name);
+      handleLoginSuccess(user);
+    });
+
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+  </script>
+</body>
+</html>

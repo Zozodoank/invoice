@@ -35,6 +35,7 @@ Cukup buka file `index.html` langsung di browser favorit Anda (Google Chrome, Mi
 5. **Kalkulasi, Diskon & Fitur Pajak Fleksibel**:
    - Fitur **Enable / Disable Pajak (PPN)** dengan satu klik toggle switch.
    - Pilihan cepat tarif PPN 11%, 12%, 0%, atau kustom persen (otomatis non-aktif bila pajak dinonaktifkan).
+   - Fitur **Enable / Disable Diskon Global** (% atau nominal) dengan satu klik toggle switch.
    - Perhitungan diskon per item (% atau nominal) & diskon global.
    - Ongkos kirim / biaya tambahan dan uang muka (DP).
    - Menghasilkan kalimat **Terbilang** otomatis dalam Bahasa Indonesia (*"Satu Juta Dua Ratus..."*) atau Bahasa Inggris.
@@ -62,3 +63,9 @@ Cukup buka file `index.html` langsung di browser favorit Anda (Google Chrome, Mi
 10. **Tampilan Responsif & Dark Mode**:
     - Nyaman digunakan di layar desktop, laptop, tablet, maupun smartphone.
     - Toggle mode gelap (Dark Mode) dan mode terang (Light Mode).
+
+11. **Portal Superadmin Khusus (`superadmin.html`)**:
+    - Akses terbatas khusus Superadmin (`megakomindo@gmail.com`) dengan verifikasi PIN master.
+    - Dashboard metrik pengguna, estimasi MRR (Monthly Recurring Revenue), dan status langganan.
+    - Manajemen paket langganan (*Free Starter, Pro Member, Enterprise*).
+    - CRUD data pengguna, perpanjangan masa aktif (1 bln, 3 bln, 6 bln, 1 thn, lifetime), penangguhan akun (suspend/activate), dan ekspor data backup.

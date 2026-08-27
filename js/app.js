@@ -83,6 +83,7 @@ function getInitialInvoice() {
     ],
 
     // Calculations
+    enableDiscount: true,
     discountType: 'percent',
     discountValue: 5,
     enableTax: true,
@@ -136,6 +137,7 @@ class InvoiceApp {
     this.attachEventListeners();
     this.initTheme();
     this.updateStatsCards();
+    this.updateAuthNavUI();
   }
 
   initSignaturePad() {
@@ -192,6 +194,55 @@ class InvoiceApp {
     }, 3000);
   }
 
+  updateAuthNavUI() {
+    if (typeof window.AuthManager === 'undefined') return;
+
+    const user = window.AuthManager.getUser();
+    const isSuper = window.AuthManager.isSuperadmin();
+
+    const btnSuperadmin = document.getElementById('btn-header-superadmin');
+    const btnLogin = document.getElementById('btn-header-login');
+    const profileBadge = document.getElementById('user-profile-badge');
+    const avatarInitials = document.getElementById('user-avatar-initials');
+    const displayName = document.getElementById('user-display-name');
+    const displayRole = document.getElementById('user-display-role');
+
+    // Only show Superadmin button if logged in as Superadmin (megakomindo@gmail.com or dumy@mail.com)
+    if (btnSuperadmin) {
+      if (isSuper) {
+        btnSuperadmin.classList.remove('hidden');
+      } else {
+        btnSuperadmin.classList.add('hidden');
+      }
+    }
+
+    if (user) {
+      if (btnLogin) btnLogin.classList.add('hidden');
+      if (profileBadge) {
+        profileBadge.classList.remove('hidden');
+        profileBadge.classList.add('flex');
+      }
+
+      if (avatarInitials) {
+        const initials = (user.name || user.email || 'U').substring(0, 2).toUpperCase();
+        avatarInitials.textContent = initials;
+      }
+      if (displayName) displayName.textContent = user.name || user.email.split('@')[0];
+      if (displayRole) {
+        displayRole.textContent = isSuper ? 'Superadmin' : (user.plan || 'Pro').toUpperCase();
+        displayRole.className = isSuper 
+          ? 'text-[9px] text-purple-600 dark:text-purple-400 font-bold block'
+          : 'text-[9px] text-blue-600 dark:text-blue-400 font-bold block';
+      }
+    } else {
+      if (btnLogin) btnLogin.classList.remove('hidden');
+      if (profileBadge) {
+        profileBadge.classList.add('hidden');
+        profileBadge.classList.remove('flex');
+      }
+    }
+  }
+
   populateForm() {
     const setVal = (id, val) => {
       const el = document.getElementById(id);
@@ -243,6 +294,10 @@ class InvoiceApp {
     // Totals
     setVal('select-discount-type', this.invoice.discountType);
     setVal('input-discount-value', this.invoice.discountValue);
+    const discountToggle = document.getElementById('toggle-enable-discount');
+    if (discountToggle) discountToggle.checked = this.invoice.enableDiscount !== false;
+    this.updateDiscountInputState();
+
     setVal('input-tax-rate', this.invoice.taxRate);
     setVal('input-shipping-fee', this.invoice.shippingFee);
     setVal('input-down-payment', this.invoice.downPayment);
@@ -300,6 +355,24 @@ class InvoiceApp {
         statusSelect.classList.remove('opacity-40', 'pointer-events-none');
       } else {
         statusSelect.classList.add('opacity-40', 'pointer-events-none');
+      }
+    }
+  }
+
+  updateDiscountInputState() {
+    const isDiscountEnabled = this.invoice.enableDiscount !== false;
+    const discountValueInput = document.getElementById('input-discount-value');
+    const discountTypeSelect = document.getElementById('select-discount-type');
+    const discountInputGroup = document.getElementById('discount-input-group');
+
+    if (discountValueInput) discountValueInput.disabled = !isDiscountEnabled;
+    if (discountTypeSelect) discountTypeSelect.disabled = !isDiscountEnabled;
+
+    if (discountInputGroup) {
+      if (isDiscountEnabled) {
+        discountInputGroup.classList.remove('opacity-40', 'pointer-events-none');
+      } else {
+        discountInputGroup.classList.add('opacity-40', 'pointer-events-none');
       }
     }
   }
@@ -665,6 +738,19 @@ class InvoiceApp {
         this.showToast(`Kontak ${this.invoice.clientName} disimpan ke buku kontak`);
       }
     });
+
+    // Auth & Logout
+    document.getElementById('btn-user-logout')?.addEventListener('click', () => {
+      if (typeof window.AuthManager !== 'undefined') {
+        window.AuthManager.logout();
+        this.showToast('Anda telah keluar dari akun', 'info');
+      }
+    });
+
+    window.addEventListener('auth:change', () => {
+      this.updateAuthNavUI();
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
   }
 
   handleFormInput(e) {
@@ -718,6 +804,10 @@ class InvoiceApp {
     if (id === 'input-client-tax-id') this.invoice.clientTaxId = target.value;
 
     // Totals
+    if (id === 'toggle-enable-discount') {
+      this.invoice.enableDiscount = target.checked;
+      this.updateDiscountInputState();
+    }
     if (id === 'select-discount-type') this.invoice.discountType = target.value;
     if (id === 'input-discount-value') this.invoice.discountValue = Number(target.value) || 0;
     if (id === 'toggle-enable-tax') {

@@ -93,7 +93,34 @@ Jika Anda memiliki domain pribadi (misal: `faktur.perusahaananda.com` atau `invo
 
 ---
 
-## 🛡️ Pengaturan Supabase di Cloudflare Pages (Jika Menggunakan Database)
+## 🗄️ Pengaturan Database Cloudflare D1 (SQLite)
+
+Jika menggunakan **Cloudflare D1 (SQLite Serverless Database)**:
+
+1. **Buat Database D1**:
+   ```bash
+   npx wrangler d1 create invoicecraft_db
+   ```
+2. **Jalankan Skema Database (`cloudflare_d1_schema.sql`)**:
+   - Untuk database lokal (pengujian):
+     ```bash
+     npx wrangler d1 execute invoicecraft_db --local --file=./cloudflare_d1_schema.sql
+     ```
+   - Untuk database produksi di Cloudflare:
+     ```bash
+     npx wrangler d1 execute invoicecraft_db --remote --file=./cloudflare_d1_schema.sql
+     ```
+3. **Mengganti Email Superadmin Dummy (`dumy@mail.com`)**:
+   - Jalankan query SQL di Cloudflare D1 Dashboard atau via Wrangler untuk mengubah email dummy menjadi email superadmin Anda:
+     ```sql
+     UPDATE users SET email = 'megakomindo@gmail.com' WHERE email = 'dumy@mail.com';
+     ```
+4. **Login OAuth Superadmin**:
+   - Tombol **Superadmin** akan otomatis muncul secara eksklusif saat login dengan email Superadmin (`megakomindo@gmail.com` / email yang Anda daftarkan di D1).
+
+---
+
+## 🛡️ Pengaturan Supabase di Cloudflare Pages (Opsi Alternatif)
 
 Jika mengintegrasikan Supabase Client ke frontend:
 1. Pada proyek Cloudflare Pages, buka tab **Settings** -> **Environment variables**.
