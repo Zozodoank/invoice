@@ -225,3 +225,20 @@ body {
     print-color-adjust: exact !important;
   }
 }
+
+/* Mobile Touch & Scroll Optimizations */
+#editor-pane {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+#preview-pane {
+  -webkit-overflow-scrolling: touch;
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  #editor-form {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+  }
+}
+

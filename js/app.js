@@ -552,7 +552,75 @@ class InvoiceApp {
     this.renderInvoice();
   }
 
+  switchMobileTab(tab) {
+    this.currentTab = tab;
+    const editorPane = document.getElementById('editor-pane');
+    const previewPane = document.getElementById('preview-pane');
+    const btnEditor = document.getElementById('tab-btn-editor');
+    const btnPreview = document.getElementById('tab-btn-preview');
+
+    if (tab === 'editor') {
+      if (editorPane) {
+        editorPane.classList.remove('hidden');
+        editorPane.classList.add('flex');
+      }
+      if (previewPane) {
+        previewPane.classList.add('hidden');
+        previewPane.classList.remove('flex');
+      }
+      if (btnEditor) {
+        btnEditor.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800 shadow-sm flex items-center justify-center gap-1.5 transition-all';
+      }
+      if (btnPreview) {
+        btnPreview.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center justify-center gap-1.5 transition-all';
+      }
+    } else {
+      if (editorPane) {
+        editorPane.classList.add('hidden');
+        editorPane.classList.remove('flex');
+      }
+      if (previewPane) {
+        previewPane.classList.remove('hidden');
+        previewPane.classList.add('flex');
+      }
+      if (btnPreview) {
+        btnPreview.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800 shadow-sm flex items-center justify-center gap-1.5 transition-all';
+      }
+      if (btnEditor) {
+        btnEditor.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center justify-center gap-1.5 transition-all';
+      }
+      // Re-render invoice when switching to preview tab to ensure crisp dimensions
+      this.renderInvoice();
+    }
+  }
+
+  handleWindowResize() {
+    const editorPane = document.getElementById('editor-pane');
+    const previewPane = document.getElementById('preview-pane');
+    if (window.innerWidth >= 1024) {
+      if (editorPane) {
+        editorPane.classList.remove('hidden');
+        editorPane.classList.add('flex');
+      }
+      if (previewPane) {
+        previewPane.classList.remove('hidden');
+        previewPane.classList.add('flex');
+      }
+    } else {
+      this.switchMobileTab(this.currentTab || 'editor');
+    }
+  }
+
   attachEventListeners() {
+    // Mobile View Tab Switcher & Quick Actions
+    document.getElementById('tab-btn-editor')?.addEventListener('click', () => this.switchMobileTab('editor'));
+    document.getElementById('tab-btn-preview')?.addEventListener('click', () => this.switchMobileTab('preview'));
+    document.getElementById('btn-mobile-history')?.addEventListener('click', () => this.openHistoryModal());
+    document.getElementById('btn-mobile-sample')?.addEventListener('click', () => this.loadSamplePreset());
+
+    // Window Resize Responsive Handler
+    window.addEventListener('resize', () => this.handleWindowResize());
+
     // Top Bar Actions
     document.getElementById('btn-new-invoice')?.addEventListener('click', () => this.createNewInvoice());
     document.getElementById('btn-save-invoice')?.addEventListener('click', () => this.saveCurrentInvoice());
