@@ -68,15 +68,15 @@
       <nav class="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 sm:p-1 rounded-xl border border-slate-200 dark:border-slate-700/80 text-[10px] sm:text-xs font-bold ml-0.5 sm:ml-2">
         <a href="index.html" class="px-1.5 sm:px-2.5 py-0.5 sm:py-1 bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 rounded-lg shadow-xs transition flex items-center gap-1 font-extrabold" title="Halaman Faktur Aktif">
           <i data-lucide="file-text" class="w-3.5 h-3.5 text-blue-500"></i>
-          <span>Faktur</span>
+          <span class="hidden sm:inline">Faktur</span>
         </a>
         <a href="kwitansi.html" class="px-1.5 sm:px-2.5 py-0.5 sm:py-1 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg transition flex items-center gap-1" title="Beralih ke Generator Kwitansi Pembayaran">
           <i data-lucide="receipt" class="w-3.5 h-3.5 text-emerald-500"></i>
-          <span>Kwitansi</span>
+          <span class="hidden sm:inline">Kwitansi</span>
         </a>
         <a href="surat-jalan.html" class="px-1.5 sm:px-2.5 py-0.5 sm:py-1 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg transition flex items-center gap-1" title="Beralih ke Generator Surat Jalan">
           <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-500"></i>
-          <span>Surat Jalan</span>
+          <span class="hidden sm:inline">Surat Jalan</span>
         </a>
       </nav>
     </div>
@@ -134,19 +134,19 @@
 
       <!-- User Account / OAuth Login Badge -->
       <div id="auth-nav-container" class="flex items-center shrink-0">
-        <a id="btn-header-login" href="auth.html" class="px-2.5 sm:px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5" title="Masuk ke Akun">
+        <a id="btn-header-login" href="auth.html" class="px-2 sm:px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-xl transition flex items-center gap-1 shrink-0" title="Masuk ke Akun">
           <i data-lucide="log-in" class="w-3.5 h-3.5 text-blue-500"></i>
-          <span class="hidden sm:inline">Masuk</span>
+          <span class="text-xs">Masuk</span>
         </a>
-        <div id="user-profile-badge" class="hidden items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+        <div id="user-profile-badge" class="hidden items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs shrink-0">
           <div id="user-avatar-initials" class="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0">U</div>
           <div class="hidden 2xl:block text-left">
             <span id="user-display-name" class="font-bold text-slate-800 dark:text-slate-200 block text-[11px] leading-tight truncate max-w-[80px]">User</span>
             <span id="user-display-role" class="text-[9px] text-purple-600 dark:text-purple-400 font-bold block">Pro</span>
           </div>
-          <button id="btn-user-logout" type="button" class="group flex items-center gap-1 px-1.5 py-0.5 text-rose-600 dark:text-rose-400 hover:bg-rose-500 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white rounded-lg transition" title="Keluar / Logout">
+          <button id="btn-user-logout" type="button" class="group flex items-center gap-1 px-1.5 py-0.5 text-rose-600 dark:text-rose-400 hover:bg-rose-500 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white rounded-lg transition shrink-0" title="Keluar / Logout">
             <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
-            <span class="hidden sm:inline text-[10px] font-bold">Keluar</span>
+            <span class="text-[10px] font-bold">Keluar</span>
           </button>
         </div>
       </div>
