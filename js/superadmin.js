@@ -360,11 +360,17 @@ class SuperadminApp {
               </span>
             </div>
             
-            <div class="mt-4">
-              <span class="text-2xl font-extrabold font-heading text-slate-900 dark:text-white">
-                ${plan.price === 0 ? 'Gratis' : this.formatCurrency(plan.price)}
-              </span>
-              ${plan.price > 0 ? `<span class="text-xs text-slate-400">/${plan.interval}</span>` : ''}
+            <div class="mt-4 flex items-baseline justify-between">
+              <div>
+                <span class="text-2xl font-extrabold font-heading text-slate-900 dark:text-white">
+                  ${plan.price === 0 ? 'Gratis' : this.formatCurrency(plan.price)}
+                </span>
+                ${plan.price > 0 ? `<span class="text-xs text-slate-400">/${plan.interval}</span>` : ''}
+              </div>
+              <button type="button" onclick="window.superadminApp.openEditPlanPriceModal('${plan.id}')" title="Ubah tarif harga paket ini" class="px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-lg hover:bg-emerald-100 transition flex items-center gap-1">
+                <i data-lucide="tag" class="w-3 h-3"></i>
+                <span>Atur Harga</span>
+              </button>
             </div>
 
             <ul class="mt-4 space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
@@ -379,13 +385,19 @@ class SuperadminApp {
 
           <div class="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs">
             <span class="text-slate-400">Limit: ${plan.maxInvoices === -1 ? 'Unlimited' : plan.maxInvoices + ' Inv/bln'}</span>
-            <button type="button" onclick="window.superadminApp.openAddUserModal('${plan.id}')" class="text-blue-600 dark:text-blue-400 font-bold hover:underline">
-              + Tambah User
-            </button>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="window.superadminApp.openEditPlanPriceModal('${plan.id}')" class="text-emerald-600 dark:text-emerald-400 font-bold hover:underline">
+                Edit Harga
+              </button>
+              <button type="button" onclick="window.superadminApp.openAddUserModal('${plan.id}')" class="text-blue-600 dark:text-blue-400 font-bold hover:underline">
+                + Tambah User
+              </button>
+            </div>
           </div>
         </div>
       `;
     }).join('');
+    if (window.lucide) window.lucide.createIcons();
   }
 
   renderUsersTable() {
@@ -674,17 +686,36 @@ class SuperadminApp {
     this.renderDashboard();
   }
 
-  // --- QUICK PLAN MODAL ---
+  // --- QUICK PLAN MODAL (WITH MANUAL TRANSACTION AGREED PRICE) ---
   openQuickPlanModal(userId) {
     const user = this.users.find(u => u.id === userId);
     if (!user) return;
 
     this.editingUserId = userId;
+    const currentPlanId = user.plan || 'pro';
+    const planObj = this.plans.find(p => p.id === currentPlanId) || {};
+
     document.getElementById('quick-plan-user-name').textContent = `${user.name} (${user.email})`;
-    document.getElementById('quick-plan-select').value = user.plan || 'pro';
+    document.getElementById('quick-plan-select').value = currentPlanId;
     document.getElementById('quick-plan-duration').value = '1m';
+    
+    const agreedInput = document.getElementById('quick-plan-agreed-price');
+    if (agreedInput) agreedInput.value = user.agreedPrice !== undefined ? user.agreedPrice : (planObj.price || 0);
+
+    const notesInput = document.getElementById('quick-plan-notes');
+    if (notesInput) notesInput.value = user.manualNotes || `Pembayaran manual luar aplikasi (${user.name})`;
+
+    // Listen to plan change to update default agreed price
+    const selectPlan = document.getElementById('quick-plan-select');
+    if (selectPlan) {
+      selectPlan.onchange = () => {
+        const selected = this.plans.find(p => p.id === selectPlan.value) || {};
+        if (agreedInput) agreedInput.value = selected.price || 0;
+      };
+    }
 
     document.getElementById('quick-plan-modal').classList.remove('hidden');
+    if (window.lucide) window.lucide.createIcons();
   }
 
   closeQuickPlanModal() {
@@ -699,6 +730,8 @@ class SuperadminApp {
 
     const newPlan = document.getElementById('quick-plan-select').value;
     const duration = document.getElementById('quick-plan-duration').value;
+    const agreedPrice = Number(document.getElementById('quick-plan-agreed-price')?.value) || 0;
+    const manualNotes = document.getElementById('quick-plan-notes')?.value || '';
 
     let targetDate = new Date();
     // If current expiry date is in the future, extend from that date
@@ -721,12 +754,55 @@ class SuperadminApp {
     user.plan = newPlan;
     user.status = 'active';
     user.expiresAt = newPlan === 'free' ? null : targetDate.toISOString().split('T')[0];
+    user.agreedPrice = agreedPrice;
+    user.manualNotes = manualNotes;
 
     this.saveUsers(this.users);
-    this.showToast(`Langganan ${user.email} diubah menjadi ${newPlan.toUpperCase()} (Aktif s.d ${user.expiresAt || 'Selamanya'})`, 'success');
+    this.showToast(`Langganan ${user.email} diubah menjadi ${newPlan.toUpperCase()} (Harga: ${this.formatCurrency(agreedPrice)}, Aktif s.d ${user.expiresAt || 'Selamanya'})`, 'success');
     
     this.closeQuickPlanModal();
     this.renderDashboard();
+  }
+
+  // --- PLAN PRICE MANAGEMENT (SUPERADMIN PRICING CONTROL) ---
+  openEditPlanPriceModal(planId) {
+    const plan = this.plans.find(p => p.id === planId);
+    if (!plan) return;
+
+    this.editingPlanId = planId;
+    document.getElementById('edit-plan-name').value = `${plan.name} (${plan.id.toUpperCase()})`;
+    document.getElementById('edit-plan-price').value = plan.price;
+    document.getElementById('edit-plan-interval').value = plan.interval || 'Bulan';
+    document.getElementById('edit-plan-instructions').value = plan.instructions || 'Transfer manual ke BCA 8830-1234-5678 a.n PT Megakom Indo';
+
+    document.getElementById('modal-edit-plan-price').classList.remove('hidden');
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  closeEditPlanPriceModal() {
+    document.getElementById('modal-edit-plan-price').classList.add('hidden');
+    this.editingPlanId = null;
+  }
+
+  savePlanPrice() {
+    if (!this.editingPlanId) return;
+    const plan = this.plans.find(p => p.id === this.editingPlanId);
+    if (!plan) return;
+
+    const newPrice = Math.max(0, Number(document.getElementById('edit-plan-price').value) || 0);
+    const newInterval = document.getElementById('edit-plan-interval').value;
+    const instructions = document.getElementById('edit-plan-instructions').value;
+
+    plan.price = newPrice;
+    plan.interval = newInterval;
+    plan.instructions = instructions;
+
+    localStorage.setItem(STORAGE_KEY_PLANS, JSON.stringify(this.plans));
+    this.showToast(`Tarif harga paket ${plan.name} berhasil diubah menjadi ${newPrice === 0 ? 'Gratis' : this.formatCurrency(newPrice)} / ${newInterval}!`, 'success');
+
+    this.closeEditPlanPriceModal();
+    this.renderPlansGrid();
+    this.updateOverviewStats();
   }
 
   // --- ACTIONS ---
@@ -888,6 +964,16 @@ class SuperadminApp {
 
     const btnCancelQuickPlan = document.getElementById('btn-cancel-quick-plan');
     if (btnCancelQuickPlan) btnCancelQuickPlan.addEventListener('click', () => this.closeQuickPlanModal());
+
+    // Edit Plan Price Form
+    const btnSavePlanPrice = document.getElementById('btn-save-plan-price');
+    if (btnSavePlanPrice) btnSavePlanPrice.addEventListener('click', () => this.savePlanPrice());
+
+    const btnCloseEditPlanPrice = document.getElementById('btn-close-edit-plan-price');
+    if (btnCloseEditPlanPrice) btnCloseEditPlanPrice.addEventListener('click', () => this.closeEditPlanPriceModal());
+
+    const btnCancelEditPlanPrice = document.getElementById('btn-cancel-edit-plan-price');
+    if (btnCancelEditPlanPrice) btnCancelEditPlanPrice.addEventListener('click', () => this.closeEditPlanPriceModal());
   }
 }
 
