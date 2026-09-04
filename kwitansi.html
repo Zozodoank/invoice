@@ -44,95 +44,95 @@
 <body class="h-full bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col antialiased selection:bg-blue-500 selection:text-white transition-colors duration-200">
 
   <!-- ================= TOP HEADER / NAVBAR ================= -->
-  <header id="app-header" class="no-print bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between shadow-sm max-w-full overflow-hidden">
+  <header id="app-header" class="no-print bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 px-2.5 sm:px-4 lg:px-6 py-2 flex items-center justify-between shadow-xs w-full">
     <!-- Brand Logo & Page Switcher -->
-    <div class="flex items-center gap-1.5 sm:gap-4 shrink-0">
-      <div class="flex items-center gap-2">
+    <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
+      <div class="flex items-center gap-1.5 sm:gap-2">
         <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white flex items-center justify-center font-extrabold shadow-md shadow-emerald-500/20 shrink-0">
           <i data-lucide="receipt" class="w-4 h-4 sm:w-5 sm:h-5"></i>
         </div>
         <div>
-          <div class="flex items-center gap-1.5">
-            <h1 class="font-heading font-bold text-sm sm:text-base tracking-tight text-slate-900 dark:text-white">KwitansiPro</h1>
-            <span class="px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 rounded-md">PRO</span>
-            <span class="hidden xl:inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-1.5 py-0.5 rounded-md" title="Draft kwitansi tersimpan otomatis di browser secara berkala">
+          <div class="flex items-center gap-1 sm:gap-1.5">
+            <h1 class="font-heading font-bold text-xs sm:text-base tracking-tight text-slate-900 dark:text-white">KwitansiPro</h1>
+            <span class="hidden sm:inline-flex px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 rounded-md">PRO</span>
+            <span class="hidden 2xl:inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-1.5 py-0.5 rounded-md" title="Draft kwitansi tersimpan otomatis di browser secara berkala">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
               <span>Auto-save ON</span>
             </span>
           </div>
-          <p class="text-[11px] text-slate-400 leading-none hidden sm:block">Generator Bukti Pembayaran Resmi</p>
+          <p class="text-[11px] text-slate-400 leading-none hidden 2xl:block">Generator Bukti Pembayaran Resmi</p>
         </div>
       </div>
 
       <!-- Navigation Pill Switcher: Faktur vs Kwitansi vs Surat Jalan -->
-      <nav class="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 sm:p-1 rounded-xl border border-slate-200 dark:border-slate-700/80 text-[11px] sm:text-xs font-bold ml-1 sm:ml-2">
-        <a href="index.html" class="px-2 sm:px-2.5 py-1 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg transition flex items-center gap-1" title="Beralih ke Generator Faktur / Invoice">
+      <nav class="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 sm:p-1 rounded-xl border border-slate-200 dark:border-slate-700/80 text-[10px] sm:text-xs font-bold ml-0.5 sm:ml-2">
+        <a href="index.html" class="px-1.5 sm:px-2.5 py-0.5 sm:py-1 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg transition flex items-center gap-1" title="Beralih ke Generator Faktur / Invoice">
           <i data-lucide="file-text" class="w-3.5 h-3.5 text-blue-500"></i>
           <span>Faktur</span>
         </a>
-        <a href="kwitansi.html" class="px-2 sm:px-2.5 py-1 bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 rounded-lg shadow-xs transition flex items-center gap-1 font-extrabold" title="Halaman Kwitansi Aktif">
+        <a href="kwitansi.html" class="px-1.5 sm:px-2.5 py-0.5 sm:py-1 bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 rounded-lg shadow-xs transition flex items-center gap-1 font-extrabold" title="Halaman Kwitansi Aktif">
           <i data-lucide="receipt" class="w-3.5 h-3.5 text-emerald-500"></i>
           <span>Kwitansi</span>
         </a>
-        <a href="surat-jalan.html" class="px-2 sm:px-2.5 py-1 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg transition flex items-center gap-1" title="Beralih ke Generator Surat Jalan">
+        <a href="surat-jalan.html" class="px-1.5 sm:px-2.5 py-0.5 sm:py-1 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg transition flex items-center gap-1" title="Beralih ke Generator Surat Jalan">
           <i data-lucide="truck" class="w-3.5 h-3.5 text-amber-500"></i>
           <span>Surat Jalan</span>
         </a>
       </nav>
     </div>
 
-    <!-- Center Quick Actions (Desktop & Tablet) -->
-    <div class="hidden md:flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-slate-700/80">
-      <button id="btn-sample-data" type="button" class="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition flex items-center gap-1.5">
+    <!-- Center Quick Actions (Desktop) -->
+    <div class="hidden xl:flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-slate-700/80 shrink-0">
+      <button id="btn-sample-data" type="button" class="px-2.5 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition flex items-center gap-1">
         <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-500"></i>
         <span>Contoh Data</span>
       </button>
-      <button id="btn-new-kwitansi" type="button" class="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition flex items-center gap-1.5">
+      <button id="btn-new-kwitansi" type="button" class="px-2.5 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition flex items-center gap-1">
         <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
-        <span>Kwitansi Baru</span>
+        <span>Baru</span>
       </button>
-      <button id="btn-save-kwitansi" type="button" class="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition flex items-center gap-1.5">
+      <button id="btn-save-kwitansi" type="button" class="px-2.5 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition flex items-center gap-1">
         <i data-lucide="save" class="w-3.5 h-3.5 text-emerald-500"></i>
         <span>Simpan</span>
       </button>
-      <button id="btn-history-modal" type="button" class="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition flex items-center gap-1.5">
+      <button id="btn-history-modal" type="button" class="px-2.5 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition flex items-center gap-1">
         <i data-lucide="folder-clock" class="w-3.5 h-3.5 text-indigo-500"></i>
         <span>Riwayat</span>
       </button>
-      <a id="btn-header-superadmin" href="superadmin.html" class="hidden px-3 py-1.5 text-xs font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition flex items-center gap-1.5" title="Portal Khusus Superadmin">
+      <a id="btn-header-superadmin" href="superadmin.html" class="hidden px-2.5 py-1 text-xs font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition flex items-center gap-1" title="Portal Khusus Superadmin">
         <i data-lucide="shield-check" class="w-3.5 h-3.5 text-purple-500"></i>
         <span>Superadmin</span>
       </a>
     </div>
 
     <!-- Right Export, Theme & Auth Buttons -->
-    <div class="flex items-center gap-1.5 sm:gap-2">
+    <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
       <!-- Dark Mode Toggle -->
-      <button id="btn-theme-toggle" type="button" class="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition" title="Toggle Tema Gelap/Terang">
+      <button id="btn-theme-toggle" type="button" class="p-1.5 sm:p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition" title="Toggle Tema Gelap/Terang">
         <i data-lucide="moon" class="w-4 h-4 hidden dark:block"></i>
         <i data-lucide="sun" class="w-4 h-4 block dark:hidden"></i>
       </button>
 
       <!-- Print Button (Desktop) -->
-      <button id="btn-print-kwitansi" type="button" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 shadow-xs transition">
+      <button id="btn-print-kwitansi" type="button" class="hidden lg:inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 shadow-xs transition">
         <i data-lucide="printer" class="w-3.5 h-3.5 text-slate-500"></i>
         <span>Cetak</span>
       </button>
 
       <!-- Share WhatsApp Button (Desktop) -->
-      <button id="btn-share-whatsapp" type="button" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-xs shadow-emerald-500/20 transition">
+      <button id="btn-share-whatsapp" type="button" class="hidden lg:inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-xs shadow-emerald-500/20 transition">
         <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
         <span>WhatsApp</span>
       </button>
 
       <!-- Download PDF Primary Button (Desktop) -->
-      <button id="btn-download-pdf" type="button" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-xs shadow-emerald-500/25 transition">
+      <button id="btn-download-pdf" type="button" class="hidden sm:inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-xs shadow-emerald-500/25 transition">
         <i data-lucide="download" class="w-3.5 h-3.5"></i>
         <span>Unduh PDF</span>
       </button>
 
       <!-- User Account / OAuth Login Badge -->
-      <div id="auth-nav-container" class="flex items-center">
+      <div id="auth-nav-container" class="flex items-center shrink-0">
         <a id="btn-header-login" href="auth.html" class="px-2.5 sm:px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-emerald-600 dark:hover:text-emerald-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5">
           <i data-lucide="log-in" class="w-3.5 h-3.5 text-emerald-500"></i>
           <span class="hidden sm:inline">Masuk</span>
