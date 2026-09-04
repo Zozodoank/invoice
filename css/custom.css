@@ -365,4 +365,90 @@ body {
   }
 }
 
+/* ================= SURAT JALAN SPECIFIC STYLES ================= */
+.surat-jalan-paper {
+  background-color: #ffffff;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  margin: 0 auto;
+  position: relative;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
+}
+
+.surat-jalan-paper.format-a4 {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 24px 30px;
+}
+
+.surat-jalan-paper.format-a5-landscape {
+  width: 210mm;
+  min-height: 148mm;
+  padding: 16px 20px;
+}
+
+.surat-jalan-stamp {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #f59e0b;
+  color: #b45309;
+  padding: 4px 14px;
+  border-radius: 8px;
+  font-weight: 900;
+  text-transform: uppercase;
+  transform: rotate(-8deg);
+  letter-spacing: 0.12em;
+  font-family: 'Outfit', sans-serif;
+  user-select: none;
+  pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+  opacity: 0.9;
+  mix-blend-mode: multiply;
+}
+
+.surat-jalan-stamp.stamp-emerald {
+  border-color: #059669;
+  color: #059669;
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2);
+}
+
+.surat-jalan-stamp.stamp-blue {
+  border-color: #2563eb;
+  color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.surat-jalan-stamp.stamp-red {
+  border-color: #dc2626;
+  color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+}
+
+@media print {
+  .surat-jalan-paper {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    margin: 0 auto !important;
+    border: none !important;
+    background: #ffffff !important;
+    page-break-after: avoid;
+    page-break-inside: avoid;
+  }
+
+  .surat-jalan-paper.format-a5-landscape {
+    width: 100% !important;
+    padding: 8mm 10mm !important;
+  }
+
+  .surat-jalan-stamp {
+    mix-blend-mode: normal !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+
 
