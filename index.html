@@ -44,17 +44,17 @@
 <body class="h-full bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col antialiased selection:bg-blue-500 selection:text-white transition-colors duration-200">
 
   <!-- ================= TOP HEADER / NAVBAR ================= -->
-  <header id="app-header" class="no-print bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 px-4 lg:px-6 py-2.5 flex items-center justify-between shadow-sm">
+  <header id="app-header" class="no-print bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between shadow-sm max-w-full overflow-hidden">
     <!-- Brand Logo & Page Switcher -->
-    <div class="flex items-center gap-3 sm:gap-4">
-      <div class="flex items-center gap-2.5">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-extrabold shadow-md shadow-blue-500/20">
-          <i data-lucide="receipt-text" class="w-5 h-5"></i>
+    <div class="flex items-center gap-1.5 sm:gap-4 shrink-0">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-extrabold shadow-md shadow-blue-500/20 shrink-0">
+          <i data-lucide="receipt-text" class="w-4 h-4 sm:w-5 sm:h-5"></i>
         </div>
         <div>
-          <div class="flex items-center gap-2">
-            <h1 class="font-heading font-bold text-base tracking-tight text-slate-900 dark:text-white">InvoicePro</h1>
-            <span class="px-1.5 py-0.5 text-[10px] font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded-md">PRO</span>
+          <div class="flex items-center gap-1.5">
+            <h1 class="font-heading font-bold text-sm sm:text-base tracking-tight text-slate-900 dark:text-white">InvoicePro</h1>
+            <span class="px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded-md">PRO</span>
             <span class="hidden xl:inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-1.5 py-0.5 rounded-md" title="Draft tersimpan otomatis di browser secara berkala">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
               <span>Auto-save ON</span>
@@ -65,7 +65,7 @@
       </div>
 
       <!-- Navigation Pill Switcher: Faktur vs Kwitansi vs Surat Jalan -->
-      <nav class="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700/80 text-xs font-bold ml-1 sm:ml-2">
+      <nav class="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 sm:p-1 rounded-xl border border-slate-200 dark:border-slate-700/80 text-[11px] sm:text-xs font-bold ml-1 sm:ml-2">
         <a href="index.html" class="px-2 sm:px-2.5 py-1 bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 rounded-lg shadow-xs transition flex items-center gap-1 font-extrabold" title="Halaman Faktur Aktif">
           <i data-lucide="file-text" class="w-3.5 h-3.5 text-blue-500"></i>
           <span>Faktur</span>
@@ -107,30 +107,29 @@
     </div>
 
     <!-- Right Export, Theme & Auth Buttons -->
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-1.5 sm:gap-2">
       <!-- Dark Mode Toggle -->
       <button id="btn-theme-toggle" type="button" class="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition" title="Toggle Tema Gelap/Terang">
         <i data-lucide="moon" class="w-4 h-4 hidden dark:block"></i>
         <i data-lucide="sun" class="w-4 h-4 block dark:hidden"></i>
       </button>
 
-      <!-- Print Button -->
+      <!-- Print Button (Desktop) -->
       <button id="btn-print-invoice" type="button" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm transition">
         <i data-lucide="printer" class="w-3.5 h-3.5 text-slate-500"></i>
         <span>Cetak</span>
       </button>
 
-      <!-- Share WhatsApp Button -->
+      <!-- Share WhatsApp Button (Desktop) -->
       <button id="btn-share-whatsapp" type="button" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-sm shadow-emerald-500/20 transition">
         <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
         <span>WhatsApp</span>
       </button>
 
-      <!-- Download PDF Primary Button -->
-      <button id="btn-download-pdf" type="button" class="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm shadow-blue-500/25 transition">
+      <!-- Download PDF Primary Button (Desktop) -->
+      <button id="btn-download-pdf" type="button" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm shadow-blue-500/25 transition">
         <i data-lucide="download" class="w-3.5 h-3.5"></i>
-        <span class="hidden sm:inline">Unduh PDF</span>
-        <span class="sm:hidden">PDF</span>
+        <span>Unduh PDF</span>
       </button>
 
       <!-- User Account / OAuth Login Badge -->
@@ -571,7 +570,7 @@
       </div>
 
       <!-- Scrollable Preview Area -->
-      <div class="flex-1 overflow-auto p-4 sm:p-8 flex justify-center items-start">
+      <div class="flex-1 overflow-auto p-4 sm:p-8 pb-24 sm:pb-8 flex justify-center items-start">
         <div class="invoice-paper-wrapper my-auto py-4">
           <!-- The Dynamic Invoice Paper Element -->
           <div id="invoice-paper-preview" class="invoice-paper">
@@ -673,6 +672,30 @@
 
   <!-- Toast Notification Container -->
   <div id="toast-container" class="no-print fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- ================= MOBILE STICKY BOTTOM ACTION BAR ================= -->
+  <div id="mobile-action-bar" class="no-print lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-3 py-2 flex items-center justify-between gap-2 shadow-lg">
+    <!-- Simpan -->
+    <button id="btn-mobile-save" type="button" class="flex-1 py-2 px-1.5 text-xs font-bold rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1.5 transition active:scale-95 shadow-xs" title="Simpan Faktur">
+      <i data-lucide="save" class="w-4 h-4 text-emerald-500"></i>
+      <span>Simpan</span>
+    </button>
+    <!-- Cetak -->
+    <button id="btn-mobile-print" type="button" class="flex-1 py-2 px-1.5 text-xs font-bold rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1.5 transition active:scale-95 shadow-xs" title="Cetak Faktur">
+      <i data-lucide="printer" class="w-4 h-4 text-slate-500"></i>
+      <span>Cetak</span>
+    </button>
+    <!-- WhatsApp -->
+    <button id="btn-mobile-whatsapp" type="button" class="flex-1 py-2 px-1.5 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1.5 transition active:scale-95 shadow-sm shadow-emerald-500/25" title="Kirim Tagihan via WhatsApp">
+      <i data-lucide="message-circle" class="w-4 h-4"></i>
+      <span>WhatsApp</span>
+    </button>
+    <!-- PDF -->
+    <button id="btn-mobile-pdf" type="button" class="flex-1 py-2 px-1.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-1.5 transition active:scale-95 shadow-sm shadow-blue-500/25" title="Unduh PDF">
+      <i data-lucide="download" class="w-4 h-4"></i>
+      <span>PDF</span>
+    </button>
+  </div>
 
   <!-- Application Logic Modules -->
   <script src="js/auth.js"></script>

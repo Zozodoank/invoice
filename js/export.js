@@ -48,6 +48,10 @@ const ExportManager = {
 
     const filename = `Invoice_${invoice.number || '001'}_${(invoice.clientName || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
     
+    // Save previous transform to prevent mobile zoom scaling artifacts
+    const prevTransform = element.style.transform;
+    element.style.transform = 'none';
+
     // Check if html2pdf is available
     if (typeof html2pdf !== 'undefined') {
       const isReceipt = invoice.template === 'receipt';
@@ -59,13 +63,15 @@ const ExportManager = {
           scale: 2, 
           useCORS: true, 
           letterRendering: true,
-          logging: false
+          logging: false,
+          windowWidth: 1024
         },
         jsPDF: { 
           unit: 'mm', 
           format: isReceipt ? [80, 200] : 'a4', 
           orientation: 'portrait' 
-        }
+        },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
       };
 
       try {
@@ -75,8 +81,11 @@ const ExportManager = {
         console.error('html2pdf generation error, falling back to window.print():', err);
         window.print();
         return false;
+      } finally {
+        element.style.transform = prevTransform;
       }
     } else {
+      element.style.transform = prevTransform;
       window.print();
       return true;
     }

@@ -582,6 +582,12 @@ class SuratJalanApp {
     document.getElementById('btn-mobile-sample')?.addEventListener('click', () => this.loadSampleData());
     document.getElementById('btn-mobile-history')?.addEventListener('click', () => this.openHistoryModal());
 
+    // Mobile Bottom Sticky Action Bar
+    document.getElementById('btn-mobile-save')?.addEventListener('click', () => this.saveToHistory());
+    document.getElementById('btn-mobile-print')?.addEventListener('click', () => ExportManager.printInvoice());
+    document.getElementById('btn-mobile-whatsapp')?.addEventListener('click', () => this.shareViaWhatsApp());
+    document.getElementById('btn-mobile-pdf')?.addEventListener('click', () => this.downloadPdf());
+
     // Window Resize Responsive Handler
     window.addEventListener('resize', () => this.handleWindowResize());
 
@@ -919,6 +925,10 @@ class SuratJalanApp {
     const isLandscape = this.suratJalan.paperFormat === 'a5-landscape';
     const filename = `Surat_Jalan_${this.suratJalan.number || '001'}_${(this.suratJalan.recipientName || 'Klien').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
 
+    // Save previous transform to prevent mobile zoom scaling artifacts
+    const prevTransform = element.style.transform;
+    element.style.transform = 'none';
+
     if (typeof html2pdf !== 'undefined') {
       const opt = {
         margin: 0,
@@ -928,13 +938,15 @@ class SuratJalanApp {
           scale: 2,
           useCORS: true,
           letterRendering: true,
-          logging: false
+          logging: false,
+          windowWidth: 1024
         },
         jsPDF: {
           unit: 'mm',
           format: isLandscape ? 'a5' : 'a4',
           orientation: isLandscape ? 'landscape' : 'portrait'
-        }
+        },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
       };
 
       try {
@@ -944,8 +956,11 @@ class SuratJalanApp {
       } catch (e) {
         console.error('PDF error, fallback to print:', e);
         window.print();
+      } finally {
+        element.style.transform = prevTransform;
       }
     } else {
+      element.style.transform = prevTransform;
       window.print();
     }
   }

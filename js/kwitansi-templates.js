@@ -151,16 +151,22 @@ const KwitansiTemplates = {
   renderTerbilang(kwitansi, calculatedAmount) {
     if (!kwitansi.showTerbilang) return '';
     const curr = kwitansi.currency || 'IDR';
+    const dec = kwitansi.useDecimals;
     const terbilangText = kwitansi.customTerbilang && kwitansi.customTerbilang.trim()
       ? kwitansi.customTerbilang.trim()
       : getSpelledOutAmount(calculatedAmount, curr, 'id');
 
     return `
-      <div class="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80 my-2">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Uang Sejumlah:</span>
-        <p class="font-heading italic font-bold text-xs sm:text-sm text-slate-800 leading-relaxed">
-          ### ${terbilangText} ###
-        </p>
+      <div class="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80 my-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Uang Sejumlah (Terbilang):</span>
+          <p class="font-heading italic font-bold text-xs sm:text-sm text-slate-800 leading-relaxed">
+            ### ${terbilangText} ###
+          </p>
+        </div>
+        <div class="font-mono-num font-extrabold text-xs sm:text-sm text-slate-900 bg-white px-2.5 py-1 rounded-md border border-slate-200 shrink-0 self-start sm:self-auto">
+          ${formatCurrency(calculatedAmount, curr, dec)}
+        </div>
       </div>
     `;
   },
@@ -283,16 +289,21 @@ const KwitansiTemplates = {
             </span>
           </div>
 
-          <!-- Terbilang Otomatis -->
-          ${kwitansi.showTerbilang ? `
-            <div class="flex items-baseline">
-              <span class="w-36 shrink-0 font-bold text-slate-700 uppercase tracking-wide text-[11px]">Banyaknya Uang</span>
-              <span class="mr-1">:</span>
-              <div class="flex-1 italic font-heading font-bold text-slate-800 text-xs sm:text-[13px] bg-slate-50 px-2 py-1 rounded border border-slate-200">
-                ### ${kwitansi.customTerbilang && kwitansi.customTerbilang.trim() ? kwitansi.customTerbilang.trim() : getSpelledOutAmount(finalAmount, curr, 'id')} ###
-              </div>
+          <!-- Terbilang Otomatis & Nominal -->
+          <div class="flex items-baseline">
+            <span class="w-36 shrink-0 font-bold text-slate-700 uppercase tracking-wide text-[11px]">Banyaknya Uang</span>
+            <span class="mr-1">:</span>
+            <div class="flex-1 flex flex-wrap items-center gap-2 bg-slate-50 px-2 py-1 rounded border border-slate-200">
+              ${kwitansi.showTerbilang ? `
+                <span class="italic font-heading font-bold text-slate-800 text-xs sm:text-[13px]">
+                  ### ${kwitansi.customTerbilang && kwitansi.customTerbilang.trim() ? kwitansi.customTerbilang.trim() : getSpelledOutAmount(finalAmount, curr, 'id')} ###
+                </span>
+              ` : ''}
+              <span class="font-mono-num font-black text-xs sm:text-[13px] text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-300">
+                ${formatCurrency(finalAmount, curr, dec)}
+              </span>
             </div>
-          ` : ''}
+          </div>
 
           <!-- Untuk Pembayaran -->
           <div class="flex items-baseline">

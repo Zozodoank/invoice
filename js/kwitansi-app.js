@@ -710,6 +710,12 @@ class KwitansiApp {
     document.getElementById('btn-mobile-sample')?.addEventListener('click', () => this.loadSampleData());
     document.getElementById('btn-mobile-history')?.addEventListener('click', () => this.openHistoryModal());
 
+    // Mobile Bottom Sticky Action Bar
+    document.getElementById('btn-mobile-save')?.addEventListener('click', () => this.saveToHistory());
+    document.getElementById('btn-mobile-print')?.addEventListener('click', () => ExportManager.printInvoice());
+    document.getElementById('btn-mobile-whatsapp')?.addEventListener('click', () => this.shareViaWhatsApp());
+    document.getElementById('btn-mobile-pdf')?.addEventListener('click', () => this.downloadPdf());
+
     // Window Resize Responsive Handler
     window.addEventListener('resize', () => this.handleWindowResize());
 
@@ -1049,13 +1055,19 @@ class KwitansiApp {
     document.getElementById('history-modal')?.classList.add('hidden');
   }
 
-  /* ================= EXPORT & SHARE ================= */
   async downloadPdf() {
     const element = document.getElementById('kwitansi-paper-preview');
     if (!element) return;
 
     const isLandscape = this.kwitansi.paperFormat !== 'a4';
     const filename = `Kwitansi_${this.kwitansi.number || '001'}_${(this.kwitansi.clientName || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+
+    // Save previous transform to prevent mobile zoom scaling artifacts
+    const prevTransform = element.style.transform;
+    element.style.transform = 'none';
+
+    // Calculate actual height needed in mm (1px = 0.264583 mm) so nominal & signature are NEVER cut off
+    const heightMm = isLandscape ? Math.max(140, Math.ceil(element.scrollHeight * 0.264583) + 6) : 297;
 
     if (typeof html2pdf !== 'undefined') {
       const opt = {
@@ -1066,13 +1078,15 @@ class KwitansiApp {
           scale: 2,
           useCORS: true,
           letterRendering: true,
-          logging: false
+          logging: false,
+          windowWidth: 1024
         },
         jsPDF: {
           unit: 'mm',
-          format: isLandscape ? [210, 110] : 'a4',
+          format: isLandscape ? [210, heightMm] : 'a4',
           orientation: isLandscape ? 'landscape' : 'portrait'
-        }
+        },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
       };
 
       try {
@@ -1082,8 +1096,11 @@ class KwitansiApp {
       } catch (e) {
         console.error('PDF error, fallback to print:', e);
         window.print();
+      } finally {
+        element.style.transform = prevTransform;
       }
     } else {
+      element.style.transform = prevTransform;
       window.print();
     }
   }

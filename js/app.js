@@ -637,6 +637,18 @@ class InvoiceApp {
     document.getElementById('btn-mobile-history')?.addEventListener('click', () => this.openHistoryModal());
     document.getElementById('btn-mobile-sample')?.addEventListener('click', () => this.loadSamplePreset());
 
+    // Mobile Bottom Sticky Action Bar
+    document.getElementById('btn-mobile-save')?.addEventListener('click', () => this.saveCurrentInvoice());
+    document.getElementById('btn-mobile-print')?.addEventListener('click', () => ExportManager.printInvoice());
+    document.getElementById('btn-mobile-whatsapp')?.addEventListener('click', () => {
+      const totals = calculateInvoiceTotals(this.invoice);
+      ExportManager.shareViaWhatsApp(this.invoice, totals);
+    });
+    document.getElementById('btn-mobile-pdf')?.addEventListener('click', () => {
+      this.showToast('Membuat file PDF...', 'info');
+      ExportManager.downloadPdf(this.invoice);
+    });
+
     // Window Resize Responsive Handler
     window.addEventListener('resize', () => this.handleWindowResize());
 
