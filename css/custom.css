@@ -242,3 +242,127 @@ body {
   }
 }
 
+/* ================= KWITANSI SPECIFIC STYLES ================= */
+.kwitansi-paper {
+  background-color: #ffffff;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  margin: 0 auto;
+  position: relative;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
+}
+
+.kwitansi-paper.format-landscape {
+  width: 210mm;
+  min-height: 110mm;
+  padding: 18px 24px;
+}
+
+.kwitansi-paper.format-a4 {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 32px 36px;
+}
+
+/* Classic Indonesian Kwitansi Guilloche Border & Motifs */
+.kwitansi-classic-border {
+  border: 3px double #1e293b;
+  position: relative;
+}
+
+.kwitansi-classic-border::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px solid #475569;
+  pointer-events: none;
+}
+
+.kwitansi-dotted-line {
+  border-bottom: 1.5px dotted #94a3b8;
+  flex: 1;
+  display: inline-block;
+  margin-left: 6px;
+  margin-right: 4px;
+  min-height: 16px;
+}
+
+/* Authentic Stamp Effect */
+.kwitansi-stamp {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #dc2626;
+  color: #dc2626;
+  padding: 4px 14px;
+  border-radius: 8px;
+  font-weight: 900;
+  text-transform: uppercase;
+  transform: rotate(-10deg);
+  letter-spacing: 0.12em;
+  font-family: 'Outfit', sans-serif;
+  user-select: none;
+  pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15);
+  opacity: 0.88;
+  mix-blend-mode: multiply;
+}
+
+.kwitansi-stamp.stamp-blue {
+  border-color: #2563eb;
+  color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.kwitansi-stamp.stamp-emerald {
+  border-color: #059669;
+  color: #059669;
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.15);
+}
+
+/* Materai Tempel Box */
+.kwitansi-materai-box {
+  width: 90px;
+  height: 52px;
+  border: 1.5px dashed #64748b;
+  border-radius: 6px;
+  background-color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 8px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: relative;
+}
+
+@media print {
+  .kwitansi-paper {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    margin: 0 auto !important;
+    border: none !important;
+    background: #ffffff !important;
+    page-break-after: avoid;
+    page-break-inside: avoid;
+  }
+
+  .kwitansi-paper.format-landscape {
+    width: 100% !important;
+    padding: 10mm 12mm !important;
+  }
+
+  .kwitansi-stamp {
+    mix-blend-mode: normal !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+

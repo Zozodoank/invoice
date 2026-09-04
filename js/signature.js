@@ -62,6 +62,10 @@ class SignaturePadManager {
   }
 
   startDrawing(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    if (rect.width > 0 && Math.abs(this.canvas.width - rect.width * 2) > 10 && !this.hasDrawn) {
+      this.initCanvas();
+    }
     this.isDrawing = true;
     const { x, y } = this.getCoordinates(e);
     this.lastX = x;

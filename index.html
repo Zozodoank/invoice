@@ -45,18 +45,32 @@
 
   <!-- ================= TOP HEADER / NAVBAR ================= -->
   <header id="app-header" class="no-print bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 px-4 lg:px-6 py-2.5 flex items-center justify-between shadow-sm">
-    <!-- Brand Logo -->
-    <div class="flex items-center gap-3">
-      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-extrabold shadow-md shadow-blue-500/20">
-        <i data-lucide="receipt-text" class="w-5 h-5"></i>
-      </div>
-      <div>
-        <div class="flex items-center gap-2">
-          <h1 class="font-heading font-bold text-base tracking-tight text-slate-900 dark:text-white">InvoicePro</h1>
-          <span class="px-1.5 py-0.5 text-[10px] font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded-md">PRO</span>
+    <!-- Brand Logo & Page Switcher -->
+    <div class="flex items-center gap-3 sm:gap-4">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-extrabold shadow-md shadow-blue-500/20">
+          <i data-lucide="receipt-text" class="w-5 h-5"></i>
         </div>
-        <p class="text-[11px] text-slate-400 leading-none hidden sm:block">Generator Faktur & Tagihan Lengkap</p>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-heading font-bold text-base tracking-tight text-slate-900 dark:text-white">InvoicePro</h1>
+            <span class="px-1.5 py-0.5 text-[10px] font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded-md">PRO</span>
+          </div>
+          <p class="text-[11px] text-slate-400 leading-none hidden sm:block">Generator Faktur & Tagihan Lengkap</p>
+        </div>
       </div>
+
+      <!-- Navigation Pill Switcher: Faktur vs Kwitansi -->
+      <nav class="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700/80 text-xs font-bold ml-1 sm:ml-2">
+        <a href="index.html" class="px-2.5 sm:px-3 py-1 bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 rounded-lg shadow-xs transition flex items-center gap-1.5 font-extrabold" title="Halaman Faktur Aktif">
+          <i data-lucide="file-text" class="w-3.5 h-3.5 text-blue-500"></i>
+          <span>Faktur</span>
+        </a>
+        <a href="kwitansi.html" class="px-2.5 sm:px-3 py-1 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg transition flex items-center gap-1.5" title="Beralih ke Generator Kwitansi Pembayaran">
+          <i data-lucide="receipt" class="w-3.5 h-3.5 text-emerald-500"></i>
+          <span>Kwitansi</span>
+        </a>
+      </nav>
     </div>
 
     <!-- Center Quick Actions -->

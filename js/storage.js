@@ -6,7 +6,9 @@ const STORAGE_KEYS = {
   CURRENT_DRAFT: 'invoice_current_draft',
   SAVED_INVOICES: 'invoice_history_list',
   SAVED_CLIENTS: 'invoice_saved_clients',
-  APP_SETTINGS: 'invoice_app_settings'
+  APP_SETTINGS: 'invoice_app_settings',
+  CURRENT_KWITANSI_DRAFT: 'kwitansi_current_draft',
+  SAVED_KWITANSIS: 'kwitansi_history_list'
 };
 
 const StorageManager = {
@@ -169,5 +171,107 @@ const StorageManager = {
       clients.push(client);
     }
     localStorage.setItem(STORAGE_KEYS.SAVED_CLIENTS, JSON.stringify(clients));
+  },
+
+  /* ================= KWITANSI METHODS ================= */
+  saveKwitansiDraft(kwitansi) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.CURRENT_KWITANSI_DRAFT, JSON.stringify(kwitansi));
+    } catch (e) {
+      console.error('Failed to save kwitansi draft to localStorage:', e);
+    }
+  },
+
+  loadKwitansiDraft() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.CURRENT_KWITANSI_DRAFT);
+      return data ? JSON.parse(data) : null;
+    } catch (e) {
+      console.error('Failed to load kwitansi draft:', e);
+      return null;
+    }
+  },
+
+  getAllKwitansis() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.SAVED_KWITANSIS);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      console.error('Failed to get kwitansi history:', e);
+      return [];
+    }
+  },
+
+  saveKwitansiToHistory(kwitansi) {
+    const list = this.getAllKwitansis();
+    const index = list.findIndex(item => item.id === kwitansi.id);
+    const toSave = {
+      ...kwitansi,
+      updatedAt: new Date().toISOString()
+    };
+    if (index >= 0) {
+      list[index] = toSave;
+    } else {
+      list.unshift(toSave);
+    }
+    localStorage.setItem(STORAGE_KEYS.SAVED_KWITANSIS, JSON.stringify(list));
+    return toSave;
+  },
+
+  deleteKwitansi(id) {
+    const list = this.getAllKwitansis().filter(item => item.id !== id);
+    localStorage.setItem(STORAGE_KEYS.SAVED_KWITANSIS, JSON.stringify(list));
+    return list;
+  },
+
+  getKwitansiSummary() {
+    const list = this.getAllKwitansis();
+    let totalCount = list.length;
+    let totalPaid = 0;
+    let totalAmount = 0;
+
+    list.forEach(k => {
+      const amount = Number(k.amount) || 0;
+      totalAmount += amount;
+      if (k.status === 'paid' || !k.status) {
+        totalPaid += amount;
+      }
+    });
+
+    return {
+      totalCount,
+      totalPaid,
+      totalAmount
+    };
+  },
+
+  exportKwitansiBackupJSON() {
+    const backupData = {
+      version: '1.0',
+      type: 'kwitansi',
+      exportedAt: new Date().toISOString(),
+      kwitansis: this.getAllKwitansis(),
+      currentDraft: this.loadKwitansiDraft()
+    };
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `kwitansi_backup_${new Date().toISOString().slice(0,10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  },
+
+  importKwitansiBackupJSON(jsonString) {
+    try {
+      const data = JSON.parse(jsonString);
+      if (data.kwitansis && Array.isArray(data.kwitansis)) {
+        localStorage.setItem(STORAGE_KEYS.SAVED_KWITANSIS, JSON.stringify(data.kwitansis));
+      }
+      return true;
+    } catch (e) {
+      console.error('Failed to import kwitansi backup:', e);
+      return false;
+    }
   }
 };

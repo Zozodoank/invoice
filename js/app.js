@@ -311,6 +311,7 @@ class InvoiceApp {
     setVal('input-qr-payload', this.invoice.qrPayload);
     const qrToggle = document.getElementById('toggle-show-qr');
     if (qrToggle) qrToggle.checked = !!this.invoice.showQrCode;
+    this.updateQrInputState();
 
     // Signer
     setVal('input-signer-name', this.invoice.signerName);
@@ -395,6 +396,19 @@ class InvoiceApp {
         taxGroup.classList.remove('opacity-40', 'pointer-events-none');
       } else {
         taxGroup.classList.add('opacity-40', 'pointer-events-none');
+      }
+    }
+  }
+
+  updateQrInputState() {
+    const isQrEnabled = !!this.invoice.showQrCode;
+    const qrInput = document.getElementById('input-qr-payload');
+    if (qrInput) {
+      qrInput.disabled = !isQrEnabled;
+      if (isQrEnabled) {
+        qrInput.classList.remove('opacity-40', 'pointer-events-none');
+      } else {
+        qrInput.classList.add('opacity-40', 'pointer-events-none');
       }
     }
   }
@@ -588,6 +602,11 @@ class InvoiceApp {
       }
       if (btnEditor) {
         btnEditor.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center justify-center gap-1.5 transition-all';
+      }
+      // Auto-fit zoom on mobile so the paper fits the screen width cleanly
+      if (window.innerWidth < 768) {
+        const targetZoom = Math.min(1.0, Math.max(0.4, (window.innerWidth - 32) / 800));
+        this.setZoom(targetZoom);
       }
       // Re-render invoice when switching to preview tab to ensure crisp dimensions
       this.renderInvoice();
@@ -891,7 +910,10 @@ class InvoiceApp {
     if (id === 'input-notes') this.invoice.notes = target.value;
     if (id === 'input-terms') this.invoice.terms = target.value;
     if (id === 'input-qr-payload') this.invoice.qrPayload = target.value;
-    if (id === 'toggle-show-qr') this.invoice.showQrCode = target.checked;
+    if (id === 'toggle-show-qr') {
+      this.invoice.showQrCode = target.checked;
+      this.updateQrInputState();
+    }
 
     // Signer
     if (id === 'input-signer-name') this.invoice.signerName = target.value;
