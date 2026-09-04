@@ -110,12 +110,21 @@ Jika menggunakan **Cloudflare D1 (SQLite Serverless Database)**:
      ```bash
      npx wrangler d1 execute invoicecraft_db --remote --file=./cloudflare_d1_schema.sql
      ```
-3. **Akun Superadmin Utama**:
+3. **Jalankan Skema Migrasi Modul Kwitansi & Surat Jalan (`migrasi1.sql` / `migrasi1`)**:
+   - Untuk database lokal:
+     ```bash
+     npx wrangler d1 execute invoicecraft_db --local --file=./migrasi1.sql
+     ```
+   - Untuk database produksi di Cloudflare:
+     ```bash
+     npx wrangler d1 execute invoicecraft_db --remote --file=./migrasi1.sql
+     ```
+4. **Akun Superadmin Utama**:
    - Skema database secara otomatis telah menyertakan akun Superadmin utama:
      `email`: `megakomindo@gmail.com`
      `role`: `superadmin` / `is_superadmin = 1`
      `plan`: `enterprise` (aktif lifetime)
-4. **Login OAuth Superadmin**:
+5. **Login OAuth Superadmin**:
    - Tombol **Superadmin** akan otomatis muncul secara eksklusif saat login dengan email Superadmin `megakomindo@gmail.com`.
 
 ---
