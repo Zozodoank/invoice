@@ -939,7 +939,8 @@ class SuratJalanApp {
           useCORS: true,
           letterRendering: true,
           logging: false,
-          windowWidth: 1024
+          scrollX: 0,
+          scrollY: 0
         },
         jsPDF: {
           unit: 'mm',

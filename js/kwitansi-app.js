@@ -1067,7 +1067,9 @@ class KwitansiApp {
     element.style.transform = 'none';
 
     // Calculate actual height needed in mm (1px = 0.264583 mm) so nominal & signature are NEVER cut off
-    const heightMm = isLandscape ? Math.max(140, Math.ceil(element.scrollHeight * 0.264583) + 6) : 297;
+    const computedHeight = isLandscape ? Math.max(130, Math.ceil(element.scrollHeight * 0.264583) + 4) : 297;
+    const orientation = !isLandscape || computedHeight >= 210 ? 'portrait' : 'landscape';
+    const format = isLandscape ? [210, computedHeight] : 'a4';
 
     if (typeof html2pdf !== 'undefined') {
       const opt = {
@@ -1079,12 +1081,13 @@ class KwitansiApp {
           useCORS: true,
           letterRendering: true,
           logging: false,
-          windowWidth: 1024
+          scrollX: 0,
+          scrollY: 0
         },
         jsPDF: {
           unit: 'mm',
-          format: isLandscape ? [210, heightMm] : 'a4',
-          orientation: isLandscape ? 'landscape' : 'portrait'
+          format: format,
+          orientation: orientation
         },
         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
       };
