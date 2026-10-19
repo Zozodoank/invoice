@@ -7,6 +7,7 @@
   <meta name="description" content="Masuk atau daftar akun Invoice Generator Pro dengan Google OAuth untuk mengelola faktur, subscription, dan database Cloudflare D1.">
 
   <!-- Tailwind CSS CDN -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://accounts.google.com; frame-src https://accounts.google.com; object-src 'none'; base-uri 'self'; form-action 'self';">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -74,19 +75,8 @@
       <p class="text-xs text-slate-500 dark:text-slate-400">Masuk untuk sinkronisasi faktur, cloud database & subscription</p>
     </div>
 
-    <!-- Tabs: Masuk / Daftar -->
-    <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700/70 text-xs font-bold">
-      <button id="tab-login" type="button" class="flex-1 py-2 rounded-lg bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm transition">
-        Masuk (Login)
-      </button>
-      <button id="tab-register" type="button" class="flex-1 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 transition">
-        Daftar (Register)
-      </button>
-    </div>
-
-    <!-- OAuth Google Primary Action Section -->
+    <!-- Google Sign In (single, secure entry point) -->
     <div class="space-y-3">
-      <!-- Google Sign In Button (Custom Styled) -->
       <button id="btn-google-oauth" type="button" class="w-full py-3 px-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 font-bold text-xs shadow-sm hover:shadow transition flex items-center justify-center gap-3">
         <!-- Official Google SVG Icon -->
         <svg class="w-4 h-4" viewBox="0 0 24 24">
@@ -97,43 +87,12 @@
         </svg>
         <span id="google-btn-text">Lanjutkan dengan Akun Google</span>
       </button>
-
-      <!-- Native Google GIS wrapper -->
-      <div id="g_id_onload"
-           data-client_id="256211100759-hqsukehq27bp2oejlrlb36mt337ucr8e.apps.googleusercontent.com"
-           data-callback="handleGoogleCredentialResponse"
-           data-auto_prompt="false">
+      <div class="text-[11px] text-slate-400 text-center leading-relaxed">
+        Daftar &amp; masuk hanya lewat Google. kredensial diverifikasi di server —
+        peran, paket, dan watermark tidak bisa diubah dari browser.
       </div>
+      <p id="auth-error" class="hidden text-center text-[11px] font-semibold text-red-600 dark:text-red-400"></p>
     </div>
-
-    <!-- Divider -->
-    <div class="relative flex items-center justify-center">
-      <div class="border-t border-slate-200 dark:border-slate-800 w-full"></div>
-      <span class="bg-white dark:bg-slate-900 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">atau dengan email</span>
-    </div>
-
-    <!-- Manual Email/Password Form (Simulated / Ready for SQLite backend) -->
-    <form id="manual-auth-form" class="space-y-3">
-      <div id="field-register-name" class="hidden">
-        <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Nama Lengkap</label>
-        <input type="text" id="input-auth-name" placeholder="Nama Lengkap Anda" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500" />
-      </div>
-
-      <div>
-        <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Alamat Email</label>
-        <input type="email" id="input-auth-email" required placeholder="nama@email.com" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium font-mono outline-none focus:ring-2 focus:ring-blue-500" />
-      </div>
-
-      <div>
-        <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Kata Sandi</label>
-        <input type="password" id="input-auth-password" required placeholder="••••••••" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500" />
-      </div>
-
-      <button type="submit" id="btn-submit-manual" class="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition flex items-center justify-center gap-1.5">
-        <i data-lucide="log-in" class="w-3.5 h-3.5"></i>
-        <span id="manual-submit-text">Masuk ke Akun</span>
-      </button>
-    </form>
 
     <div class="text-center text-[11px] text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
       Database Cloudflare D1 (SQLite) • Hak Akses Superadmin Otomatis
@@ -156,82 +115,71 @@
       localStorage.setItem('invoicecraft_theme', dark ? 'dark' : 'light');
     });
 
-    // Tab Switching (Masuk vs Daftar)
-    let isRegister = false;
-    const tabLogin = document.getElementById('tab-login');
-    const tabRegister = document.getElementById('tab-register');
-    const fieldName = document.getElementById('field-register-name');
-    const submitText = document.getElementById('manual-submit-text');
-    const googleBtnText = document.getElementById('google-btn-text');
-
-    tabLogin.addEventListener('click', () => {
-      isRegister = false;
-      tabLogin.className = "flex-1 py-2 rounded-lg bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm transition";
-      tabRegister.className = "flex-1 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 transition";
-      fieldName.classList.add('hidden');
-      submitText.textContent = "Masuk ke Akun";
-      googleBtnText.textContent = "Lanjutkan dengan Akun Google";
-    });
-
-    tabRegister.addEventListener('click', () => {
-      isRegister = true;
-      tabRegister.className = "flex-1 py-2 rounded-lg bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm transition";
-      tabLogin.className = "flex-1 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 transition";
-      fieldName.classList.remove('hidden');
-      submitText.textContent = "Daftar Akun Baru";
-      googleBtnText.textContent = "Daftar Cepat dengan Google";
-    });
-
-    // Helper redirect after login
-    function handleLoginSuccess(user) {
-      if (user.isSuperadmin) {
-        window.location.href = 'superadmin.html';
-      } else {
-        window.location.href = 'index.html';
-      }
+    const errorEl = document.getElementById('auth-error');
+    function showError(msg) {
+      if (!errorEl) return;
+      errorEl.textContent = msg;
+      errorEl.classList.remove('hidden');
     }
 
-    // Google OAuth button click (Native GIS Prompt with fallback)
+    // Redirect after a successful server-verified login.
+    function handleLoginSuccess(user) {
+      window.location.href = user.isSuperadmin ? 'superadmin.html' : 'index.html';
+    }
+
+    let GIS_CLIENT_ID = null;
+    let gisReady = false;
+
+    // Single source of truth for the Google client id: fetch from /api/config.
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/config', { credentials: 'same-origin' });
+        const cfg = await res.json();
+        GIS_CLIENT_ID = cfg.clientId || null;
+      } catch { GIS_CLIENT_ID = null; }
+    }
+
+    function initGoogle() {
+      if (!GIS_CLIENT_ID || !(window.google && window.google.accounts && window.google.accounts.id)) return;
+      window.google.accounts.id.initialize({
+        client_id: GIS_CLIENT_ID,
+        callback: async (response) => {
+          const result = await AuthManager.handleGoogleResponse(response);
+          if (result && !result.error) handleLoginSuccess(result);
+          else showError((result && result.error) || 'Login gagal. Coba lagi.');
+        }
+      });
+      gisReady = true;
+    }
+
     document.getElementById('btn-google-oauth')?.addEventListener('click', () => {
-      if (window.google && window.google.accounts && window.google.accounts.id) {
-        window.google.accounts.id.prompt((notification) => {
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            const promptEmail = prompt('Masukkan akun Google Anda (contoh: megakomindo@gmail.com):', 'megakomindo@gmail.com');
-            if (promptEmail) {
-              const user = AuthManager.loginDemo(promptEmail, promptEmail.split('@')[0]);
-              handleLoginSuccess(user);
+      showError('');
+      if (!gisReady) initGoogle(); // GIS may finish loading after boot; init lazily on click
+      if (gisReady) {
+        // One-tap prompt; if blocked (e.g. previously dismissed) fall back to the button render.
+        window.google.accounts.id.prompt((n) => {
+          if (n.isNotDisplayed() || n.isSkippedMoment()) {
+            const box = document.getElementById('btn-google-oauth');
+            if (box && !box.dataset.rendered) {
+              window.google.accounts.id.renderButton(box, { theme: 'filled', size: 'large', width: 300 });
+              box.dataset.rendered = '1';
+              box.firstChild && (box.style.display = 'none');
             }
           }
         });
       } else {
-        const promptEmail = prompt('Masukkan akun Google Anda (contoh: megakomindo@gmail.com):', 'megakomindo@gmail.com');
-        if (promptEmail) {
-          const user = AuthManager.loginDemo(promptEmail, promptEmail.split('@')[0]);
-          handleLoginSuccess(user);
-        }
+        showError('Layanan Google belum siap. Muat ulang halaman lalu coba lagi.');
       }
     });
 
-    // Global callback for Google GIS SDK token
-    window.handleGoogleCredentialResponse = (response) => {
-      const user = AuthManager.handleGoogleResponse(response);
-      if (user) {
-        handleLoginSuccess(user);
-      }
-    };
+    (async function boot() {
+      // Already signed in? Go straight to the app (server is authoritative).
+      const existing = await AuthManager.init();
+      if (existing) { handleLoginSuccess(existing); return; }
+      await loadConfig();
+    })();
 
-    // Manual Form submit
-    document.getElementById('manual-auth-form')?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const email = document.getElementById('input-auth-email').value.trim();
-      const name = document.getElementById('input-auth-name')?.value.trim() || email.split('@')[0];
-      const user = AuthManager.loginDemo(email, name);
-      handleLoginSuccess(user);
-    });
-
-    if (window.lucide) {
-      window.lucide.createIcons();
-    }
+    if (window.lucide) window.lucide.createIcons();
   </script>
 </body>
 </html>

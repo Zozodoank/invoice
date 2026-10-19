@@ -1,0 +1,44 @@
+# ==============================================================================
+# InvoiceCraft — Cloudflare Pages + Functions + D1 configuration
+# ==============================================================================
+# Deploy model:
+#   - Static frontend  : served from repo root (pages_build_output_dir = ".")
+#   - API / auth layer : Pages Functions in ./functions (auto-routed, see files)
+#   - Database         : Cloudflare D1 (SQLite), bound below as `DB`
+#
+# Supabase is intentionally removed; all persistence now lives in D1 via the
+# Pages Functions API. See docs/architecture.md.
+# ==============================================================================
+
+name = "invoicecraft"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Pages static output = project root.
+pages_build_output_dir = "."
+
+# ------------------------------------------------------------------------------
+# D1 binding (exposed to Functions as `env.DB`)
+# Replace database_id with the real value from:
+#   npx wrangler d1 create invoicecraft_db
+# ------------------------------------------------------------------------------
+[[d1_databases]]
+binding = "DB"
+database_name = "invoicecraft_db"
+database_id = "ba60d73b-9a52-4f0a-ad66-04c678f385fa"
+
+# ------------------------------------------------------------------------------
+# Public, non-secret variables (safe to commit)
+# ------------------------------------------------------------------------------
+[vars]
+GOOGLE_CLIENT_ID = "256211100759-hqsukehq27bp2oejlrlb36mt337ucr8e.apps.googleusercontent.com"
+TZ = "Asia/Jakarta"
+
+# ------------------------------------------------------------------------------
+# SECRETS — DO NOT put these here. Set them in the dashboard or CLI instead:
+#   npx wrangler secret put SESSION_SECRET     # HMAC key for signing session cookie
+#   npx wrangler secret put SUPERADMIN_EMAIL   # megakomindo@gmail.com (server-only)
+#   npx wrangler secret put PAYMENT_WEBHOOK_SECRET  # X-Payment-Key for /api/payments/confirm (MacroDroid)
+# For Cloudflare Pages, add the same two under
+#   Workers & Pages -> Pages -> <project> -> Settings -> Functions -> Environment variables / Secrets
+# ------------------------------------------------------------------------------

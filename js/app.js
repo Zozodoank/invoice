@@ -8,7 +8,8 @@ function getInitialInvoice() {
   const dueDate = new Date();
   dueDate.setDate(today.getDate() + 14);
 
-  const formatDate = (d) => d.toISOString().split('T')[0];
+  // WIB-aware date (avoids the UTC off-by-one of toISOString()).
+  const formatDate = (d) => (window.Format ? window.Format.toISODate(d) : d.toISOString().split('T')[0]);
   const randomNum = Math.floor(1000 + Math.random() * 9000);
 
   return {
@@ -82,14 +83,15 @@ function getInitialInvoice() {
       }
     ],
 
-    // Calculations
-    enableDiscount: true,
+    // Calculations — defaults OFF / zero so a brand-new invoice never silently
+    // adds discount or PPN (audit #15). Users opt in explicitly.
+    enableDiscount: false,
     discountType: 'percent',
-    discountValue: 5,
-    enableTax: true,
-    taxRate: 11, // PPN 11%
+    discountValue: 0,
+    enableTax: false,
+    taxRate: 0, // PPN opt-in (e.g. 11)
     shippingFee: 0,
-    downPayment: 5000000,
+    downPayment: 0,
 
     // Payment Info
     bankAccounts: [
@@ -153,15 +155,14 @@ class InvoiceApp {
   }
 
   initTheme() {
-    const isDark = localStorage.getItem('invoice_theme_dark') === 'true';
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    }
+    const saved = localStorage.getItem('invoicecraft_theme');
+    const isDark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.classList.toggle('dark', !!isDark);
   }
 
   toggleTheme() {
     const isDark = document.documentElement.classList.toggle('dark');
-    localStorage.setItem('invoice_theme_dark', isDark);
+    localStorage.setItem('invoicecraft_theme', isDark ? 'dark' : 'light');
     this.showToast(isDark ? 'Mode Gelap diaktifkan' : 'Mode Terang diaktifkan', 'info');
   }
 
@@ -178,10 +179,12 @@ class InvoiceApp {
     };
 
     toast.className = `px-4 py-3 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-2 transform transition-all duration-300 ease-out translate-y-2 opacity-0 ${bgColors[type] || bgColors.success}`;
-    toast.innerHTML = `
-      <span>${type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ'}</span>
-      <span>${message}</span>
-    `;
+    const icon = document.createElement('span');
+    icon.textContent = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
+    const msg = document.createElement('span');
+    msg.textContent = message;
+    toast.appendChild(icon);
+    toast.appendChild(msg);
 
     container.appendChild(toast);
     setTimeout(() => {
@@ -207,7 +210,7 @@ class InvoiceApp {
     const displayName = document.getElementById('user-display-name');
     const displayRole = document.getElementById('user-display-role');
 
-    // Only show Superadmin button if logged in as Superadmin (megakomindo@gmail.com or dumy@mail.com)
+    // Only show the Superadmin button when the SERVER session role is superadmin (never from localStorage/email).
     if (btnSuperadmin) {
       if (isSuper) {
         btnSuperadmin.classList.remove('hidden');
@@ -426,7 +429,7 @@ class InvoiceApp {
       row.innerHTML = `
         <div class="flex items-center justify-between gap-2">
           <span class="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center justify-center">${index + 1}</span>
-          <input type="text" class="item-name flex-1 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-800 dark:text-slate-100" placeholder="Nama Barang / Layanan" value="${item.name || ''}" data-index="${index}" />
+          <input type="text" class="item-name flex-1 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-800 dark:text-slate-100" placeholder="Nama Barang / Layanan" value="${window.esc(item.name || '')}" data-index="${index}" />
           
           <div class="flex items-center gap-1">
             <button type="button" class="btn-dup-item p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700" title="Duplikat" data-index="${index}">
@@ -439,7 +442,7 @@ class InvoiceApp {
         </div>
 
         <div>
-          <input type="text" class="item-desc w-full px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[11px] text-slate-600 dark:text-slate-300" placeholder="Deskripsi tambahan (opsional)" value="${item.description || ''}" data-index="${index}" />
+          <input type="text" class="item-desc w-full px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[11px] text-slate-600 dark:text-slate-300" placeholder="Deskripsi tambahan (opsional)" value="${window.esc(item.description || '')}" data-index="${index}" />
         </div>
 
         <div class="grid grid-cols-12 gap-2 text-xs">
@@ -449,7 +452,7 @@ class InvoiceApp {
           </div>
           <div class="col-span-3">
             <label class="text-[10px] text-slate-400 font-medium block">Satuan</label>
-            <input type="text" class="item-unit w-full px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900" placeholder="Pcs/Jam" value="${item.unit || ''}" data-index="${index}" />
+            <input type="text" class="item-unit w-full px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900" placeholder="Pcs/Jam" value="${window.esc(item.unit || '')}" data-index="${index}" />
           </div>
           <div class="col-span-6">
             <label class="text-[10px] text-slate-400 font-medium block">Harga Satuan</label>
@@ -488,22 +491,22 @@ class InvoiceApp {
       const row = document.createElement('div');
       row.className = 'p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2 relative';
       row.innerHTML = `
-        <button type="button" class="btn-del-bank absolute top-2 right-2 text-slate-400 hover:text-rose-500" data-index="${index}">
+        <button type="button" class="btn-del-bank absolute top-2 right-2 text-slate-400 hover:text-rose-500" data-bank-index="${index}">
           <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
         </button>
         <div class="grid grid-cols-1 gap-2 text-xs">
           <div>
             <label class="text-[10px] text-slate-400 font-medium block">Nama Bank / E-Wallet</label>
-            <input type="text" class="bank-name w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900" placeholder="BCA / Mandiri / QRIS" value="${bank.bankName || ''}" data-index="${index}" />
+            <input type="text" class="bank-name w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900" placeholder="BCA / Mandiri / QRIS" value="${window.esc(bank.bankName || '')}" data-bank-index="${index}" />
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="text-[10px] text-slate-400 font-medium block">Nomor Rekening</label>
-              <input type="text" class="bank-number w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 font-mono-num" placeholder="1234567890" value="${bank.accountNumber || ''}" data-index="${index}" />
+              <input type="text" class="bank-number w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 font-mono-num" placeholder="1234567890" value="${window.esc(bank.accountNumber || '')}" data-bank-index="${index}" />
             </div>
             <div>
               <label class="text-[10px] text-slate-400 font-medium block">Atas Nama (a.n.)</label>
-              <input type="text" class="bank-holder w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900" placeholder="Nama Pemilik" value="${bank.accountHolder || ''}" data-index="${index}" />
+              <input type="text" class="bank-holder w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900" placeholder="Nama Pemilik" value="${window.esc(bank.accountHolder || '')}" data-bank-index="${index}" />
             </div>
           </div>
         </div>
@@ -679,17 +682,17 @@ class InvoiceApp {
     document.getElementById('btn-zoom-reset')?.addEventListener('click', () => this.setZoom(1.0));
 
     // Logo Upload & Remove
-    document.getElementById('input-logo-file')?.addEventListener('change', (e) => {
+    document.getElementById('input-logo-file')?.addEventListener('change', async (e) => {
       const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          this.invoice.logoUrl = event.target.result;
-          this.renderInvoice();
-          StorageManager.saveDraft(this.invoice);
-          this.showToast('Logo berhasil diunggah');
-        };
-        reader.readAsDataURL(file);
+      if (!file) return;
+      try {
+        this.invoice.logoUrl = await window.sanitizeImageFile(file, { maxKB: 512 });
+        this.renderInvoice();
+        StorageManager.saveDraft(this.invoice);
+        this.showToast('Logo berhasil diunggah');
+      } catch (err) {
+        this.showToast(err.message || 'Gagal mengunggah logo', 'error');
+        e.target.value = '';
       }
     });
 
@@ -763,6 +766,7 @@ class InvoiceApp {
       const delBtn = e.target.closest('.btn-del-item');
       if (delBtn) {
         const idx = Number(delBtn.getAttribute('data-index'));
+        if (!(this.invoice.items || [])[idx]) return;
         this.invoice.items.splice(idx, 1);
         this.renderItemsList();
         this.renderInvoice();
@@ -773,7 +777,9 @@ class InvoiceApp {
       const dupBtn = e.target.closest('.btn-dup-item');
       if (dupBtn) {
         const idx = Number(dupBtn.getAttribute('data-index'));
-        const cloned = JSON.parse(JSON.stringify(this.invoice.items[idx]));
+        const source = (this.invoice.items || [])[idx];
+        if (!source) return;
+        const cloned = JSON.parse(JSON.stringify(source));
         cloned.id = Date.now();
         this.invoice.items.splice(idx + 1, 0, cloned);
         this.renderItemsList();
@@ -785,7 +791,9 @@ class InvoiceApp {
     document.getElementById('banks-form-container')?.addEventListener('click', (e) => {
       const delBtn = e.target.closest('.btn-del-bank');
       if (delBtn) {
-        const idx = Number(delBtn.getAttribute('data-index'));
+        const idx = Number(delBtn.getAttribute('data-bank-index'));
+        const bank = (this.invoice.bankAccounts || [])[idx];
+        if (!bank) return;
         this.invoice.bankAccounts.splice(idx, 1);
         this.renderBankAccountsList();
         this.renderInvoice();
@@ -846,9 +854,16 @@ class InvoiceApp {
       }
     });
 
-    window.addEventListener('auth:change', () => {
+    window.addEventListener('auth:change', async (e) => {
+      const user = e.detail;
+      StorageManager.setUser(user ? user.id : null);
       this.updateAuthNavUI();
       this.renderInvoice();
+      if (user) {
+        await StorageManager.syncFromServer('invoice');
+        this.renderHistoryTable();
+        this.updateStatsCards();
+      }
       if (typeof lucide !== 'undefined') lucide.createIcons();
     });
   }
@@ -931,10 +946,10 @@ class InvoiceApp {
     if (id === 'input-signer-name') this.invoice.signerName = target.value;
     if (id === 'input-signer-title') this.invoice.signerTitle = target.value;
 
-    // Line Items dynamic inputs
+    // Line Items dynamic inputs (item index and bank index are namespaced apart, #30).
     if (target.dataset.index !== undefined) {
       const idx = Number(target.dataset.index);
-      const item = this.invoice.items[idx];
+      const item = (this.invoice.items || [])[idx];
       if (item) {
         if (target.classList.contains('item-name')) item.name = target.value;
         if (target.classList.contains('item-desc')) item.description = target.value;
@@ -944,9 +959,12 @@ class InvoiceApp {
         if (target.classList.contains('item-discount')) item.discountValue = Number(target.value) || 0;
         if (target.classList.contains('item-discount-type')) item.discountType = target.value;
       }
+    }
 
-      // Bank dynamic inputs
-      const bank = (this.invoice.bankAccounts || [])[idx];
+    // Bank dynamic inputs
+    if (target.dataset.bankIndex !== undefined) {
+      const bIdx = Number(target.dataset.bankIndex);
+      const bank = (this.invoice.bankAccounts || [])[bIdx];
       if (bank) {
         if (target.classList.contains('bank-name')) bank.bankName = target.value;
         if (target.classList.contains('bank-number')) bank.accountNumber = target.value;
@@ -1059,14 +1077,15 @@ class InvoiceApp {
       const dec = inv.useDecimals;
       return `
         <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-          <td class="py-3 px-4 font-mono-num font-bold text-slate-800 dark:text-slate-200">${inv.number || '-'}</td>
-          <td class="py-3 px-4 text-slate-600 dark:text-slate-300 font-semibold">${inv.clientName || '-'}</td>
-          <td class="py-3 px-4 text-slate-500 text-[11px]">${inv.date || '-'}</td>
+          <td class="py-3 px-4 font-mono-num font-bold text-slate-800 dark:text-slate-200">${esc(inv.number) || '-'}</td>
+          <td class="py-3 px-4 text-slate-600 dark:text-slate-300 font-semibold">${esc(inv.clientName) || '-'}</td>
+          <td class="py-3 px-4 text-slate-500 text-[11px]">${esc(inv.date) || '-'}</td>
           <td class="py-3 px-4 font-mono-num font-bold text-slate-900 dark:text-slate-100">${formatCurrency(totals.grandTotal, curr, dec)}</td>
           <td class="py-3 px-4">${inv.showStatus !== false ? InvoiceTemplates.renderStatusBadge(inv.status, inv.language || 'id') : '<span class="text-xs text-slate-400 italic">Nonaktif</span>'}</td>
           <td class="py-3 px-4 text-right space-x-1">
-            <button class="btn-load-history px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-semibold hover:bg-blue-100" data-id="${inv.id}">Buka</button>
-            <button class="btn-delete-history p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" data-id="${inv.id}" title="Hapus">
+            ${window.QrisPay && window.QrisPay.isPayable(inv) ? window.QrisPay.buttonHtml(inv.id) : ''}
+            <button class="btn-load-history px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-semibold hover:bg-blue-100" data-id="${escAttr(inv.id)}">Buka</button>
+            <button class="btn-delete-history p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" data-id="${escAttr(inv.id)}" title="Hapus">
               <i data-lucide="trash-2" class="w-3.5 h-3.5 inline"></i>
             </button>
           </td>
@@ -1111,10 +1130,41 @@ class InvoiceApp {
         }
       });
     });
+
+    // Bayar QRIS statis (server menentukan nominal + kode unik 2 digit).
+    tbody.querySelectorAll('.btn-qris-pay').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.getAttribute('data-id');
+        if (window.QrisPay) window.QrisPay.open('invoice', id, {
+          onClean: async () => {
+            await StorageManager.syncFromServer('invoice');
+            if (this.invoice && this.invoice.id === id) this.invoice.hasWatermark = false;
+            this.renderHistoryTable(
+              document.getElementById('history-search-input')?.value,
+              document.getElementById('history-status-filter')?.value
+            );
+            this.renderInvoice();
+            this.showToast('Invoice bebas watermark — pembayaran terkonfirmasi!', 'success');
+          }
+        });
+      });
+    });
   }
 }
 
 // Bootstrap on DOM Ready
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   window.app = new InvoiceApp();
+  // Establish server-authoritative identity, namespace the cache, then hydrate from D1.
+  if (window.AuthManager) {
+    const user = await window.AuthManager.init();
+    window.StorageManager.setUser(user ? user.id : null);
+    if (user) {
+      await window.StorageManager.syncFromServer('invoice');
+      window.app.renderHistoryTable();
+      window.app.updateStatsCards();
+    }
+    window.app.updateAuthNavUI();
+    window.app.renderInvoice();
+  }
 });

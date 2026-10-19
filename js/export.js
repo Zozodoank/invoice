@@ -46,7 +46,8 @@ const ExportManager = {
       return;
     }
 
-    const filename = `Invoice_${invoice.number || '001'}_${(invoice.clientName || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+    const slug = (window.Format ? window.Format.slug : (s) => String(s || '').replace(/[^a-zA-Z0-9]/g, '_'));
+    const filename = `Invoice_${slug(invoice.number) || '001'}_${slug(invoice.clientName) || 'Client'}.pdf`;
     
     // Save previous transform to prevent mobile zoom scaling artifacts
     const prevTransform = element.style.transform;
@@ -99,7 +100,10 @@ const ExportManager = {
     const curr = invoice.currency || 'IDR';
     const lang = invoice.language || 'id';
     const dec = invoice.useDecimals;
-    const hasWatermark = typeof window.AuthManager !== 'undefined' ? window.AuthManager.shouldShowWatermark() : true;
+    // Server row wins per-document: hasWatermark === false only ever comes from D1
+    // (paid via static QRIS); otherwise the per-user decision is the default.
+    const userWm = typeof window.AuthManager !== 'undefined' ? window.AuthManager.shouldShowWatermark() : true;
+    const hasWatermark = userWm && invoice.hasWatermark !== false;
     
     let text = '';
     if (hasWatermark) {
@@ -115,7 +119,8 @@ const ExportManager = {
       text += `*Jatuh Tempo:* ${invoice.dueDate}\n`;
     }
     if (invoice.showStatus !== false) {
-      const statusLabel = (invoice.status || 'PENDING').toUpperCase();
+      const sMap = { paid: 'LUNAS', pending: 'MENUNGGU PEMBAYARAN', overdue: 'JATUH TEMPO', draft: 'DRAFT', cancelled: 'DIBATALKAN' };
+      const statusLabel = invoice.status ? (sMap[invoice.status.toLowerCase()] || 'TIDAK DIKETAHUI') : 'MENUNGGU';
       text += `*Status:* ${statusLabel}\n`;
     }
     text += `*Kepada:* ${invoice.clientName || '-'}\n\n`;
@@ -158,7 +163,7 @@ const ExportManager = {
       ? `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`
       : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
 
-    window.open(waUrl, '_blank');
+    window.open(waUrl, '_blank', 'noopener,noreferrer');
   },
 
   /**
@@ -168,7 +173,8 @@ const ExportManager = {
     const curr = invoice.currency || 'IDR';
     const email = invoice.clientEmail || '';
     const dec = invoice.useDecimals;
-    const hasWatermark = typeof window.AuthManager !== 'undefined' ? window.AuthManager.shouldShowWatermark() : true;
+    const userWm2 = typeof window.AuthManager !== 'undefined' ? window.AuthManager.shouldShowWatermark() : true;
+    const hasWatermark = userWm2 && invoice.hasWatermark !== false;
     const prefix = hasWatermark ? '[CONTOH INVOICE] ' : '';
     const subject = `${prefix}Invoice ${invoice.number || ''} - ${invoice.senderName || 'Penagihan'}`;
     

@@ -21,7 +21,11 @@ const SuratJalanTemplates = {
       draft: { text: 'DRAFT', bg: 'bg-slate-100 text-slate-700 border-slate-300' }
     };
 
-    const config = statusMap[status] || statusMap.in_transit;
+    // Unknown/enum-mismatched status must NOT silently render as a valid state (#38).
+    const config = statusMap[status];
+    if (!config) {
+      return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider uppercase border bg-rose-100 text-rose-800 border-rose-300">TIDAK DIKETAHUI</span>`;
+    }
     return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider uppercase border ${config.bg}">${config.text}</span>`;
   },
 
@@ -48,9 +52,13 @@ const SuratJalanTemplates = {
    * Helper to render Watermark
    */
   renderWatermark(sj) {
-    const showWatermark = sj && sj.showWatermark !== undefined
-      ? sj.showWatermark
-      : (typeof window.AuthManager !== 'undefined' ? window.AuthManager.shouldShowWatermark() : true);
+    // Server is the sole watermark authority (#20); the document cannot override it.
+    // Per-document relief is honoured ONLY when the server-saved row itself carries
+    // hasWatermark === false (e.g. paid via static QRIS) — local drafts never set it.
+    const userLevelWm = (typeof window.AuthManager !== 'undefined')
+      ? window.AuthManager.shouldShowWatermark()
+      : true;
+    const showWatermark = userLevelWm && sj.hasWatermark !== false;
 
     if (!showWatermark) return '';
 
@@ -405,7 +413,7 @@ const SuratJalanTemplates = {
                 <th class="p-2 w-8 text-center">#</th>
                 ${sj.showSkuColumn ? `<th class="p-2 w-28">Kode / SKU</th>` : ''}
                 <th class="p-2">Deskripsi Barang</th>
-                <th class="p-2 w-20 text-center">Volume</th>
+                <th class="p-2 w-20 text-center">Qty</th>
                 <th class="p-2 w-20 text-center">Satuan</th>
                 ${sj.showItemCondition ? `<th class="p-2 w-28 text-center">Status</th>` : ''}
               </tr>
@@ -487,7 +495,7 @@ const SuratJalanTemplates = {
               <th class="py-1.5 w-8">#</th>
               ${sj.showSkuColumn ? `<th class="py-1.5 w-28">SKU</th>` : ''}
               <th class="py-1.5">Nama Item / Barang</th>
-              <th class="py-1.5 w-20 text-center">Volume</th>
+              <th class="py-1.5 w-20 text-center">Qty</th>
               <th class="py-1.5 w-20 text-center">Satuan</th>
               ${sj.showItemCondition ? `<th class="py-1.5 w-28 text-center">Kondisi</th>` : ''}
             </tr>
@@ -629,8 +637,13 @@ const SuratJalanTemplates = {
    * Main render dispatch method
    */
   render(sj) {
-    const templateName = (sj && sj.template) || 'warehouse';
-    const renderer = this[templateName] || this.warehouse;
+    // Allow-list renderers (#52).
+    const ALLOWED = ['warehouse', 'corporate', 'minimalist', 'cargo'];
+    const name = sj && sj.template;
+    const renderer = (typeof name === 'string' && ALLOWED.includes(name) &&
+      Object.prototype.hasOwnProperty.call(this, name) && typeof this[name] === 'function')
+      ? this[name]
+      : this.warehouse;
     return renderer.call(this, sj || {});
   }
 };

@@ -73,51 +73,55 @@ function formatNumber(amount, currencyCode = 'IDR', useDecimals = null) {
 }
 
 /**
- * Calculate single item line total
+ * Calculate a single item line NET total — TAX-EXCLUSIVE (base - item discount).
+ * Item tax is aggregated separately (see calculateItemTax) so PPN is never
+ * charged twice (once inside the line, once globally).
  */
 function calculateItemTotal(item) {
   const qty = Math.max(0, Number(item.quantity) || 0);
   const price = Math.max(0, Number(item.price) || 0);
   let baseTotal = qty * price;
-  
-  // Item discount
+
   let discount = 0;
   if (item.discountType === 'percent') {
     discount = baseTotal * ((Number(item.discountValue) || 0) / 100);
   } else {
     discount = Number(item.discountValue) || 0;
   }
-  
-  let totalAfterDiscount = Math.max(0, baseTotal - discount);
-  
-  // Item tax (if applicable)
-  let itemTax = 0;
-  if (item.taxRate && Number(item.taxRate) > 0) {
-    itemTax = totalAfterDiscount * (Number(item.taxRate) / 100);
-  }
-  
-  return totalAfterDiscount + itemTax;
+
+  return Math.max(0, baseTotal - discount);
+}
+
+/** Per-item tax amount (on top of the tax-exclusive line net). */
+function calculateItemTax(item) {
+  const net = calculateItemTotal(item);
+  const rate = Number(item.taxRate) || 0;
+  return rate > 0 ? net * (rate / 100) : 0;
 }
 
 /**
- * Calculate all invoice totals
+ * Calculate all invoice totals.
+ * `enableDiscount` / `enableTax` are treated as OFF unless explicitly true,
+ * consistent with the receipt module and the server (functions/_shared/calc.js).
  */
 function calculateInvoiceTotals(invoice) {
   const items = invoice.items || [];
-  
-  let subtotal = 0;
+
+  let subtotal = 0;      // tax-exclusive
+  let itemTaxTotal = 0;
   let itemsRawTotal = 0;
-  
+
   items.forEach(item => {
     const qty = Math.max(0, Number(item.quantity) || 0);
     const price = Math.max(0, Number(item.price) || 0);
     itemsRawTotal += (qty * price);
     subtotal += calculateItemTotal(item);
+    itemTaxTotal += calculateItemTax(item);
   });
-  
-  // Global Discount (with enable/disable support)
+
+  // Global Discount (enabled only when explicitly true).
   let globalDiscount = 0;
-  const isDiscountEnabled = invoice.enableDiscount !== false;
+  const isDiscountEnabled = invoice.enableDiscount === true;
   if (isDiscountEnabled) {
     if (invoice.discountType === 'percent') {
       globalDiscount = subtotal * ((Number(invoice.discountValue) || 0) / 100);
@@ -126,32 +130,26 @@ function calculateInvoiceTotals(invoice) {
     }
     globalDiscount = Math.min(subtotal, Math.max(0, globalDiscount));
   }
-  
+
   const taxableAmount = Math.max(0, subtotal - globalDiscount);
-  
-  // Tax calculation (with enable/disable support)
-  let taxAmount = 0;
-  const isTaxEnabled = invoice.enableTax !== false;
+
+  // Global tax + per-item tax, each applied exactly once.
+  const isTaxEnabled = invoice.enableTax === true;
   const taxRate = isTaxEnabled ? (Number(invoice.taxRate) || 0) : 0;
-  if (isTaxEnabled && taxRate > 0) {
-    taxAmount = taxableAmount * (taxRate / 100);
-  }
-  
-  // Shipping & Additional fees
+  const globalTax = (isTaxEnabled && taxRate > 0) ? taxableAmount * (taxRate / 100) : 0;
+  const taxAmount = itemTaxTotal + globalTax;
+
   const shippingFee = Math.max(0, Number(invoice.shippingFee) || 0);
-  
-  // Grand Total
   const grandTotal = taxableAmount + taxAmount + shippingFee;
-  
-  // Down Payment / Amount Paid
+
   const downPayment = Math.max(0, Number(invoice.downPayment) || 0);
-  
-  // Balance Due
-  const balanceDue = Math.max(0, grandTotal - downPayment);
-  
+  // Balance may be negative => overpayment; the UI labels it "Kelebihan bayar".
+  const balanceDue = grandTotal - downPayment;
+
   return {
     subtotal,
     itemsRawTotal,
+    itemTaxTotal,
     globalDiscount,
     taxableAmount,
     taxRate,

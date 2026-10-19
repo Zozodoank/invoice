@@ -1,171 +1,129 @@
 /**
- * Authentication Module with Google OAuth & Superadmin Role Management
- * Supports Cloudflare SQLite/D1 user models & client-side OAuth sessions.
+ * Authentication Module — thin client for the Cloudflare Pages Functions backend.
+ *
+ * IMPORTANT: The browser is NEVER the source of truth for identity/role/plan/watermark.
+ * Those decisions come from the server (verified session + D1) via `GET /api/me`.
+ * `localStorage` here is only a fast-display CACHE and is re-confirmed on every load.
  */
 
-const SUPERADMIN_EMAILS = ['megakomindo@gmail.com'];
-const AUTH_STORAGE_KEY = 'invoicecraft_auth_user';
-const GOOGLE_CLIENT_ID = '256211100759-hqsukehq27bp2oejlrlb36mt337ucr8e.apps.googleusercontent.com';
+const AUTH_CACHE_KEY = 'invoicecraft_auth_cache';
 
 const AuthManager = {
+  /** In-memory server snapshot (or null). Not authoritative until confirmed by /api/me. */
+  _user: null,
+
+  /** API base — same origin (Pages Functions under /api). */
+  _api(path) {
+    return `/api${path}`;
+  },
+
+  async _fetchJSON(path, options = {}) {
+    const res = await fetch(this._api(path), {
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      ...options
+    });
+    let data = null;
+    try { data = await res.json(); } catch { /* no body */ }
+    return { ok: res.ok, status: res.status, data };
+  },
+
   /**
-   * Get current authenticated user
+   * Re-confirm identity with the server. Updates cache + dispatches `auth:change`.
+   * @returns the authoritative user snapshot (or null when logged out).
    */
-  getUser() {
-    try {
-      const stored = localStorage.getItem(AUTH_STORAGE_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (e) {
-      console.error('Error parsing auth state', e);
+  async refresh() {
+    const { ok, data } = await this._fetchJSON('/me');
+    if (ok && data) {
+      this._user = data;
+      this._writeCache(data);
+    } else {
+      this._user = null;
+      try { localStorage.removeItem(AUTH_CACHE_KEY); } catch { /* ignore */ }
     }
-    return null;
+    window.dispatchEvent(new CustomEvent('auth:change', { detail: this._user }));
+    return this._user;
   },
 
-  /**
-   * Check if user is logged in
-   */
+  /** Boot: hydrate from cache for a fast first paint, then confirm against the server. */
+  async init() {
+    try {
+      const cached = localStorage.getItem(AUTH_CACHE_KEY);
+      if (cached) this._user = JSON.parse(cached);
+    } catch { /* ignore */ }
+    return await this.refresh();
+  },
+
+  _writeCache(user) {
+    try { localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(user)); } catch { /* ignore */ }
+  },
+
+  /** Server snapshot (display fields + entitlement). */
+  getUser() {
+    return this._user;
+  },
+
   isLoggedIn() {
-    return this.getUser() !== null;
+    return !!this._user;
   },
 
-  /**
-   * Check if current user is superadmin
-   */
+  /** Authoritative ONLY after a successful refresh(); cached otherwise. */
   isSuperadmin() {
-    const user = this.getUser();
-    if (!user || !user.email) return false;
-    const cleanEmail = user.email.toLowerCase().trim();
-    return SUPERADMIN_EMAILS.includes(cleanEmail) || user.isSuperadmin === true || user.role === 'superadmin';
+    return !!(this._user && this._user.role === 'superadmin');
   },
 
   /**
-   * Check if watermark ("CONTOH INVOICE") should be displayed.
-   * Watermark is shown if:
-   * 1. User is NOT logged in, OR
-   * 2. Logged-in user has an inactive / expired / suspended subscription or Free plan.
-   * Superadmin and active Pro/Enterprise users have NO watermark.
+   * Whether a brand-new document should show the "CONTOH" watermark.
+   * Default is the MOST RESTRICTIVE (true) whenever there is no valid server session.
+   * Per-document trial resolution happens on the server at save time.
    */
   shouldShowWatermark() {
-    const user = this.getUser();
-    
-    // 1. Not logged in -> Watermark ACTIVE
-    if (!user) return true;
+    if (!this._user) return true;          // not logged in -> always watermark
+    if (this._user.isSuperadmin) return false;
+    if (this._user.isPaid) return false;
+    // Free user: server tells us global default; if missing, be safe.
+    return this._user.hasWatermark !== false;
+  },
 
-    // 2. Superadmin -> Watermark INACTIVE
-    if (this.isSuperadmin()) return false;
-
-    // 3. Subscription Status Check
-    if (user.subscriptionStatus === 'inactive' || user.subscriptionStatus === 'suspended' || user.subscriptionStatus === 'expired') {
-      return true;
-    }
-
-    // 4. Free plan without paid subscription -> Watermark ACTIVE
-    if (user.plan === 'free') {
-      return true;
-    }
-
-    // 5. Expiration date check
-    if (user.expiresAt) {
-      const expiry = new Date(user.expiresAt);
-      if (expiry < new Date()) {
-        return true;
-      }
-    }
-
-    // Active paid subscriber (Pro / Enterprise) -> Watermark INACTIVE
-    return false;
+  /** Remaining clean (no-watermark) bonus documents per type, or null if unlimited. */
+  getTrial() {
+    return (this._user && this._user.trial) || null;
   },
 
   /**
-   * Save user session
+   * Exchange a Google Credential Response for a server session.
+   * @returns authoritative user snapshot, or null on failure (reason in `.error`).
    */
-  setUser(userData) {
-    const isSuper = SUPERADMIN_EMAILS.includes((userData.email || '').toLowerCase().trim()) || userData.isSuperadmin === true;
-    const sessionUser = {
-      ...userData,
-      isSuperadmin: isSuper,
-      role: isSuper ? 'superadmin' : (userData.role || 'user'),
-      plan: isSuper ? 'enterprise' : (userData.plan || 'pro'),
-      subscriptionStatus: isSuper ? 'active' : (userData.subscriptionStatus || 'active'),
-      loginAt: new Date().toISOString()
-    };
-
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(sessionUser));
-    window.dispatchEvent(new CustomEvent('auth:change', { detail: sessionUser }));
-    return sessionUser;
-  },
-
-  /**
-   * Logout
-   */
-  logout() {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    window.dispatchEvent(new CustomEvent('auth:change', { detail: null }));
-  },
-
-  /**
-   * Parse JWT token payload from Google OAuth Credential Response
-   */
-  parseJwt(token) {
-    try {
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-      }).join(''));
-      return JSON.parse(jsonPayload);
-    } catch (e) {
-      console.error('Failed to parse JWT token', e);
-      return null;
-    }
-  },
-
-  /**
-   * Handle Google Credential Response
-   */
-  handleGoogleResponse(response) {
-    if (!response || !response.credential) {
+  async loginWithCredential(credential) {
+    if (!credential) {
       console.error('Invalid Google Credential Response');
       return null;
     }
-
-    const payload = this.parseJwt(response.credential);
-    if (!payload || !payload.email) {
-      console.error('Failed to extract email from Google Token');
-      return null;
+    const { ok, data } = await this._fetchJSON('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential })
+    });
+    if (!ok || !data) {
+      return { error: (data && data.error) || 'Login gagal. Coba lagi.' };
     }
-
-    const user = {
-      id: 'usr_' + (payload.sub || Date.now().toString(36)),
-      email: payload.email,
-      name: payload.name || payload.email.split('@')[0],
-      avatar: payload.picture || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(payload.name || payload.email)}`,
-      provider: 'google',
-      googleId: payload.sub,
-      plan: 'pro'
-    };
-
-    return this.setUser(user);
+    this._user = data;
+    this._writeCache(data);
+    window.dispatchEvent(new CustomEvent('auth:change', { detail: data }));
+    return data;
   },
 
-  /**
-   * Login with Simulated Google Account (One-click login for easy testing)
-   */
-  loginDemo(email, name, role = 'user') {
-    const isSuper = SUPERADMIN_EMAILS.includes((email || '').toLowerCase().trim());
-    const user = {
-      id: 'usr_' + (isSuper ? 'superadmin' : Date.now().toString(36)),
-      email: email,
-      name: name || (isSuper ? 'Super Administrator' : email.split('@')[0]),
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name || email)}`,
-      provider: 'google',
-      role: isSuper ? 'superadmin' : role,
-      plan: isSuper ? 'enterprise' : 'pro'
-    };
+  /** GIS SDK callback entry point. */
+  async handleGoogleResponse(response) {
+    const credential = response && response.credential;
+    return await this.loginWithCredential(credential);
+  },
 
-    return this.setUser(user);
+  /** Sign out: clear server cookie + local cache. */
+  async logout() {
+    try { await this._fetchJSON('/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
+    this._user = null;
+    try { localStorage.removeItem(AUTH_CACHE_KEY); } catch { /* ignore */ }
+    window.dispatchEvent(new CustomEvent('auth:change', { detail: null }));
   }
 };
 

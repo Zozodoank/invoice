@@ -4,9 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Superadmin Portal - Manajemen User & Langganan | InvoiceCraft</title>
-  <meta name="description" content="Portal Superadmin khusus megakomindo@gmail.com untuk mengelola pengguna, tenant, dan subscription plan Invoice Generator Pro.">
+  <meta name="description" content="Portal Superadmin untuk mengelola pengguna, tenant, dan subscription plan Invoice Generator Pro.">
 
   <!-- Tailwind CSS CDN -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://accounts.google.com https://api.whatsapp.com; frame-src https://accounts.google.com; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self';">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -59,8 +60,8 @@
         </div>
         <h1 class="font-heading font-extrabold text-2xl text-slate-900 dark:text-white tracking-tight">Superadmin Portal</h1>
         <p class="text-xs text-slate-500 dark:text-slate-400">
-          Akses terbatas khusus Superadmin <br>
-          <span class="font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-md">megakomindo@gmail.com</span>
+          Akses terbatas khusus Superadmin.<br>
+          <span class="text-slate-400">Masuk dengan akun Google Anda yang memiliki peran superadmin.</span>
         </p>
       </div>
 
@@ -120,7 +121,7 @@
         <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
           <div class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></div>
           <span class="font-semibold text-slate-600 dark:text-slate-300">Login:</span>
-          <span id="header-admin-email" class="font-mono font-bold text-blue-600 dark:text-blue-400">megakomindo@gmail.com</span>
+          <span id="header-admin-email" class="font-mono font-bold text-blue-600 dark:text-blue-400">—</span>
         </div>
 
         <!-- Go to Main Invoice & Kwitansi Generator -->
@@ -161,7 +162,7 @@
             <i data-lucide="bar-chart-3" class="w-5 h-5 text-blue-600"></i>
             <span>Ringkasan Metrik & Pendapatan</span>
           </h2>
-          <span class="text-xs text-slate-400">Data realtime simulasi (LocalStorage)</span>
+          <span class="text-xs text-slate-400">Data realtime dari Cloudflare D1</span>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -235,6 +236,84 @@
         </div>
       </section>
 
+      <!-- ================= 2B. TARIF PER-DOKUMEN & QRIS STATIS ================= -->
+      <section class="space-y-4 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <h2 class="font-heading font-extrabold text-lg text-slate-900 dark:text-white flex items-center gap-2">
+              <i data-lucide="qr-code" class="w-5 h-5 text-emerald-600"></i>
+              <span>Tarif Per-Dokumen &amp; QRIS Statis</span>
+            </h2>
+            <p class="text-xs text-slate-400">Harga yang dibayar via QRIS statis per dokumen (promo aktif = akhiran 2 digit unik via MacroDroid)</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] font-bold text-slate-400 uppercase">Harga efektif saat ini</span>
+            <span id="billing-effective-badge" class="px-3 py-1 rounded-xl text-sm font-extrabold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">-</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <!-- Kolom kiri: tarif & masa promo -->
+          <div class="space-y-3 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+            <label class="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
+              <input id="billing-promo-active" type="checkbox" class="w-4 h-4 accent-emerald-600">
+              <span>Promo aktif</span>
+              <span class="text-[10px] font-normal text-slate-400">(non-aktifkan untuk kembali ke tarif normal)</span>
+            </label>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label for="input-billing-promo" class="block font-bold text-slate-600 dark:text-slate-300 mb-1">Harga Promo (Rp/dokumen)</label>
+                <input id="input-billing-promo" type="number" min="0" max="1000000" step="100" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-mono">
+              </div>
+              <div>
+                <label for="input-billing-normal" class="block font-bold text-slate-600 dark:text-slate-300 mb-1">Harga Normal (Rp/dokumen)</label>
+                <input id="input-billing-normal" type="number" min="0" max="1000000" step="100" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-mono">
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label for="input-billing-start" class="block font-bold text-slate-600 dark:text-slate-300 mb-1">Mulai promo (kosong = kapan pun)</label>
+                <input id="input-billing-start" type="date" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-mono">
+              </div>
+              <div>
+                <label for="input-billing-end" class="block font-bold text-slate-600 dark:text-slate-300 mb-1">Selesai promo (inklusif, kosong = tanpa batas)</label>
+                <input id="input-billing-end" type="date" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-mono">
+              </div>
+            </div>
+          </div>
+
+          <!-- Kolom kanan: QRIS statis -->
+          <div class="space-y-3 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+            <label class="block font-bold text-slate-700 dark:text-slate-200">Gambar QRIS Statis Merchant</label>
+            <div class="flex items-center gap-3">
+              <div class="w-28 h-28 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 flex items-center justify-center overflow-hidden shrink-0">
+                <img id="billing-qris-preview" alt="Pratinjau QRIS statis" class="max-w-full max-h-full hidden">
+                <span id="billing-qris-empty" class="text-[10px] text-slate-400 px-2 text-center">Belum ada gambar QRIS</span>
+              </div>
+              <div class="space-y-2">
+                <input id="input-billing-qris" type="file" accept="image/png,image/jpeg" class="block text-[11px] text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700">
+                <button type="button" id="btn-clear-billing-qris" class="text-[11px] font-bold text-rose-600 hover:underline">Hapus gambar</button>
+              </div>
+            </div>
+            <div>
+              <label for="input-billing-note" class="block font-bold text-slate-600 dark:text-slate-300 mb-1">Catatan instruksi untuk user</label>
+              <textarea id="input-billing-note" rows="3" maxlength="500" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950" placeholder="Bayar nominal PERSIS seperti tertera via QRIS ke merchant ini."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <p class="text-[11px] text-slate-400">
+            Riwayat QRIS: <span id="stat-paid-docs" class="font-bold text-slate-600 dark:text-slate-300">0 lunas</span>
+            • <span id="stat-payment-revenue" class="font-bold text-slate-600 dark:text-slate-300">Rp 0</span> pendapatan tarif (di luar kode unik)
+            • <span id="stat-payment-pending" class="font-bold text-slate-600 dark:text-slate-300">0 menunggu</span>
+          </p>
+          <button type="button" id="btn-save-billing" class="px-4 py-2 text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm flex items-center gap-2">
+            <i data-lucide="save" class="w-4 h-4"></i><span>Simpan Tarif &amp; QRIS</span>
+          </button>
+        </div>
+      </section>
+
       <!-- ================= 3. USER MANAGEMENT MASTER TABLE ================= -->
       <section class="space-y-4 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
         
@@ -253,9 +332,9 @@
 
           <!-- Action Buttons -->
           <div class="flex flex-wrap items-center gap-2">
-            <button id="btn-reset-mock-data" type="button" class="px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 transition flex items-center gap-1.5" title="Reset ke data simulasi bawaan">
-              <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
-              <span>Reset Mock</span>
+            <button id="btn-refresh-users" type="button" class="px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 transition flex items-center gap-1.5" title="Muat ulang data dari server">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              <span>Muat Ulang</span>
             </button>
             <button id="btn-export-users-data" type="button" class="px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 transition flex items-center gap-1.5" title="Export Backup JSON">
               <i data-lucide="download" class="w-3.5 h-3.5"></i>
@@ -332,7 +411,7 @@
 
     <!-- Footer -->
     <footer class="p-6 text-center text-xs text-slate-400 border-t border-slate-200 dark:border-slate-800">
-      InvoiceCraft Superadmin Portal • Akses Khusus: <span class="font-mono font-bold text-slate-600 dark:text-slate-300">megakomindo@gmail.com</span>
+      InvoiceCraft Superadmin Portal • Akses terbatas untuk akun dengan peran superadmin.
     </footer>
 
   </div>
@@ -557,7 +636,11 @@
   <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- Auth & Superadmin Scripts -->
+  <script src="js/sanitize.js"></script>
   <script src="js/auth.js"></script>
+  <script src="js/db-mapping.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/format.js"></script>
   <script src="js/superadmin.js"></script>
 </body>
 </html>

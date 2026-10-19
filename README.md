@@ -1,9 +1,12 @@
 # 🧾 Invoice Generator Pro (InvoiceCraft)
 
-Aplikasi web modern, responsif, dan lengkap untuk membuat, mengelola, mencetak, dan mengekspor faktur / invoice tagihan secara instan tanpa perlu instalasi server atau dependensi tambahan.
+Aplikasi web modern, responsif, dan lengkap untuk membuat, mengelola, mencetak, dan mengekspor faktur / kwitansi / surat jalan secara instan. Backend memakai **Cloudflare Pages + Pages Functions + D1 (SQLite)** — Supabase sudah dilepas sepenuhnya.
+
+> **Catatan:** Halaman statis (`index.html`) masih bisa dibuka langsung untuk mode luring (demo). Namun **login Google, penyimpanan data nyata ke D1, entitlement watermark, dan Portal Superadmin memerlukan backend** — jalankan via `wrangler pages dev` (lihat [`DEPLOY_CLOUDFLARE.md`](DEPLOY_CLOUDFLARE.md)) agar `functions/api/*` aktif.
 
 ## 🚀 Cara Menjalankan
-Cukup buka file `index.html` langsung di browser favorit Anda (Google Chrome, Microsoft Edge, Mozilla Firefox, Opera, atau Safari) dengan klik ganda (*double-click*).
+- **Mode demo luring:** buka `index.html` di browser (klik ganda).
+- **Mode penuh (dengan API & auth):** `npx wrangler pages dev . --d1 DB` setelah membuat binding D1 + secret (`SESSION_SECRET`, `SUPERADMIN_EMAIL`). Detail di [`DEPLOY_CLOUDFLARE.md`](DEPLOY_CLOUDFLARE.md). Arsitektur & sumber kebenaran dijelaskan di [`docs/architecture.md`](docs/architecture.md).
 
 ---
 
@@ -64,16 +67,19 @@ Cukup buka file `index.html` langsung di browser favorit Anda (Google Chrome, Mi
     - Nyaman digunakan di layar desktop, laptop, tablet, maupun smartphone.
     - Toggle mode gelap (Dark Mode) dan mode terang (Light Mode).
 
-11. **Portal Superadmin & Autentikasi Google OAuth (`superadmin.html` & `auth.html`)**:
-    - Akses Superadmin otomatis dan eksklusif untuk `megakomindo@gmail.com` via Google OAuth tanpa perlu PIN.
-    - Dashboard metrik pengguna, estimasi MRR (Monthly Recurring Revenue), dan status langganan.
-    - Manajemen paket langganan (*Free Starter, Pro Member, Enterprise*).
-    - CRUD data pengguna, perpanjangan masa aktif (1 bln, 3 bln, 6 bln, 1 thn, lifetime), penangguhan akun (suspend/activate), dan ekspor data backup.
+11. **Portal Superadmin & Autentikasi Google OAuth (Otoritatif Server)**:
+    - Sesi adalah **cookie HttpOnly/SameSite=Lax bertanda tangan HMAC**; peran `superadmin` diputuskan **server** dari kolom DB (`is_superadmin`) + kecocokan `SUPERADMIN_EMAIL`, bukan dari input klien.
+    - Menonaktifkan `is_superadmin`/`is_active` langsung **mencabut akses** pada request berikutnya (guard membaca ulang DB).
+    - Dashboard metrik pengguna, estimasi MRR (harga efektif per pengguna), dan status langganan — semuanya via API admin (`functions/api/admin/*`) ke D1.
+    - CRUD pengguna, atur paket + masa aktif (addMonths dengan clamp akhir bulan; lifetime = flag, bukan sentinel tanggal), suspend/activate, dan atur harga paket.
 
-12. **Proteksi Watermark Pintar ("CONTOH INVOICE")**:
-    - Faktur menampilkan watermark besar diagonal *"CONTOH INVOICE"* secara otomatis ketika pengguna **belum login** atau **status langganan tidak aktif/expired/free**.
-    - Watermark terproteksi secara konsisten pada tampilan layar, berkas unduhan PDF (`html2pdf`), hasil cetak (*Print Preview* A4), serta teks pesan WhatsApp dan Email.
-    - Pengguna aktif berbayar (*Pro / Enterprise*) dan Superadmin otomatis bebas watermark.
+12. **Proteksi Watermark Pintar (Entitlement Server)**:
+    - **Belum login → selalu berwatermark.** Pendaftar baru mendapat **bonus 3 dokumen tanpa watermark** (1 invoice + 1 kwitansi + 1 surat jalan), dicatat di kolom DB `trial_*_used`.
+    - Setelah bonus habis dan plan `free`/`expired` → watermark aktif lagi. **Superadmin & pelanggan berbayar aktif → bebas watermark** selamanya selama aktif.
+    - `hasWatermark` adalah **read-only dari server** (`/api/entitlements`); klien tidak dapat menimpanya. Nilai yang sama dipakai template, PDF, cetak, WhatsApp, dan Email agar konsisten.
 
-13. **Integrasi Cloudflare D1 (SQLite Database)**:
-    - Skema database serverless SQLite lengkap pada `cloudflare_d1_schema.sql` siap eksekusi via Cloudflare Wrangler CLI.
+13. **Keamanan Frontend (XSS/CSP/Upload)**:
+    - Helper `js/sanitize.js` (`esc`/`escAttr`/`safeColor`); upload logo/signature divalidasi MIME + ukuran lalu di-*re-encode* via canvas (buang markup SVG); *allow-list* template; CSP `meta` di tiap halaman; toast memakai `textContent`.
+
+14. **Integrasi Cloudflare D1 (SQLite Database)**:
+    - Skema database serverless SQLite pada `cloudflare_d1_schema.sql`; API berbasis file di `functions/` dengan binding `env.DB` dan guard `scopedUserId` (anti-IDOR).

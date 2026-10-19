@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+.dev.vars
 
 # OS Files
 .DS_Store
@@ -28,3 +29,15 @@ build/
 *.njsproj
 *.sln
 *.sw?
+
+# Local data exports / PII backups (NEVER commit)
+*_backup_*.json
+invoicecraft_users_backup_*.json
+
+# Duplicate legacy migration file (replaced by D1 schema)
+migrasi1
+
+# Local QA screenshot artifacts & dev-only preview DB
+qa_*.png
+superadmin-*.png
+.wrangler/state/preview.sqlite

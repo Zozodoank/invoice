@@ -365,8 +365,18 @@ body {
   }
 
   .kwitansi-paper.format-landscape {
-    width: 100% !important;
+    /* Re-assert the true physical width AFTER the 100% rule above (#49). */
+    width: 210mm !important;
+    min-height: 120mm !important;
+    max-width: none !important;
     padding: 10mm 12mm !important;
+  }
+
+  .kwitansi-paper.format-a4 {
+    width: 210mm !important;
+    min-height: 297mm !important;
+    max-width: none !important;
+    padding: 24px 28px !important;
   }
 
   .kwitansi-stamp {
@@ -450,8 +460,18 @@ body {
   }
 
   .surat-jalan-paper.format-a5-landscape {
-    width: 100% !important;
+    /* Re-assert A5-landscape physical size AFTER the 100% rule (#49). */
+    width: 210mm !important;
+    min-height: 148mm !important;
+    max-width: none !important;
     padding: 8mm 10mm !important;
+  }
+
+  .surat-jalan-paper.format-a4 {
+    width: 210mm !important;
+    min-height: 297mm !important;
+    max-width: none !important;
+    padding: 16mm 18mm !important;
   }
 
   .surat-jalan-stamp {

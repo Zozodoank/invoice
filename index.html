@@ -6,6 +6,7 @@
   <title>Invoice Generator Pro - Buat Faktur & Tagihan Cepat</title>
   
   <!-- Tailwind CSS Play CDN -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://accounts.google.com https://api.whatsapp.com; frame-src https://accounts.google.com; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self';">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -699,11 +700,44 @@
   </div>
 
   <!-- Application Logic Modules -->
+  <!-- ================= MODAL: BAYAR QRIS STATIS (per dokumen) ================= -->
+  <div id="qris-modal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm p-6 space-y-4 animate-fade-in">
+      <div class="flex items-center justify-between">
+        <h3 class="font-heading font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+          <i data-lucide="qr-code" class="w-4 h-4 text-emerald-600"></i> Pembayaran QRIS Dokumen Ini
+        </h3>
+        <button id="btn-close-qris-modal" type="button" class="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="mx-auto w-56 h-56 rounded-xl border border-slate-200 dark:border-slate-700 bg-white flex items-center justify-center overflow-hidden">
+        <img id="qris-image" alt="QRIS statis merchant" class="max-w-full max-h-full hidden">
+        <span id="qris-image-empty" class="text-[11px] text-slate-400 px-3 text-center">Gambar QRIS belum diatur oleh pemilik platform.</span>
+      </div>
+      <div class="text-center space-y-1.5">
+        <p id="qris-amount" class="font-mono-num font-extrabold text-2xl text-emerald-600 dark:text-emerald-400">Rp 0</p>
+        <p id="qris-base-info" class="text-[11px] text-slate-400"></p>
+        <button id="qris-copy-btn" type="button" class="px-3 py-1.5 text-xs font-bold bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/50">Salin Nominal</button>
+      </div>
+      <p id="qris-note" class="text-[11px] text-slate-500 dark:text-slate-400 text-center"></p>
+      <div class="flex items-center justify-between gap-2 pt-1">
+        <p id="qris-status" class="text-xs font-bold text-amber-600 dark:text-amber-400">Menunggu pembayaran…</p>
+        <button id="qris-check-btn" type="button" class="px-3 py-1.5 text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700">Cek Sekarang</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/sanitize.js"></script>
   <script src="js/auth.js"></script>
+  <script src="js/db-mapping.js"></script>
+  <script src="js/api.js"></script>
   <script src="js/calculations.js"></script>
+  <script src="js/format.js"></script>
   <script src="js/templates.js"></script>
   <script src="js/signature.js"></script>
   <script src="js/storage.js"></script>
+  <script src="js/qris-payment.js"></script>
   <script src="js/export.js"></script>
   <script src="js/app.js"></script>
 

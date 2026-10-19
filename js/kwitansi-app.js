@@ -9,7 +9,7 @@ function getInitialKwitansi() {
     id: 'kwt_' + Date.now().toString(36),
     number: 'KWT-2026-001',
     referenceNumber: 'INV-2026-001',
-    date: new Date().toISOString().slice(0, 10),
+    date: (window.Format ? window.Format.todayLocal() : new Date().toISOString().slice(0, 10)),
     senderCity: 'Jakarta',
     status: 'paid', // paid, dp, installment, partial, deposit, cancelled
     template: 'classic', // classic, modern, minimalist, detailed
@@ -108,14 +108,21 @@ class KwitansiApp {
     this.updateAuthNavUI();
 
     // Listen to global auth changes (login/logout) to refresh watermark
-    window.addEventListener('auth:change', () => {
+    window.addEventListener('auth:change', async (e) => {
+      const user = e.detail;
+      StorageManager.setUser(user ? user.id : null);
       this.updateAuthNavUI();
+      if (user) {
+        await StorageManager.syncFromServer('kwitansi');
+        this.renderHistoryTable();
+        this.updateStatsCards();
+      }
       this.renderKwitansi();
     });
   }
 
   initTheme() {
-    const savedTheme = localStorage.getItem('invoice_theme');
+    const savedTheme = localStorage.getItem('invoicecraft_theme');
     if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       document.documentElement.classList.add('dark');
     } else {
@@ -125,7 +132,7 @@ class KwitansiApp {
 
   toggleTheme() {
     const isDark = document.documentElement.classList.toggle('dark');
-    localStorage.setItem('invoice_theme', isDark ? 'dark' : 'light');
+    localStorage.setItem('invoicecraft_theme', isDark ? 'dark' : 'light');
     if (typeof lucide !== 'undefined') lucide.createIcons();
   }
 
@@ -581,8 +588,12 @@ class KwitansiApp {
     const previewPaper = document.getElementById('kwitansi-paper-preview');
     if (!previewPaper) return;
 
-    const templateName = this.kwitansi.template || 'classic';
-    const renderer = KwitansiTemplates[templateName] || KwitansiTemplates.classic;
+    // Allow-list renderers (#52).
+    const ALLOWED = ['classic', 'modern', 'minimalist', 'detailed'];
+    const templateName = this.kwitansi.template;
+    const renderer = (typeof templateName === 'string' && ALLOWED.includes(templateName))
+      ? KwitansiTemplates[templateName]
+      : KwitansiTemplates.classic;
     const totals = this.calculateTotals();
 
     // Format Paper Size
@@ -592,11 +603,9 @@ class KwitansiApp {
     // Render HTML template
     previewPaper.innerHTML = renderer.call(KwitansiTemplates, this.kwitansi, totals);
 
-    // Generate QR Code if enabled
+    // Generate QR Code synchronously so the canvas is present before any PDF capture (#53).
     if (this.kwitansi.showQrCode && this.kwitansi.qrPayload) {
-      setTimeout(() => {
-        ExportManager.generateQrCode('kwitansi-qr-code', this.kwitansi.qrPayload);
-      }, 30);
+      ExportManager.generateQrCode('kwitansi-qr-code', this.kwitansi.qrPayload);
     }
 
     // Update Quick Sidebar Summary Card
@@ -641,17 +650,17 @@ class KwitansiApp {
     });
 
     // Logo Upload & Remove
-    document.getElementById('input-logo-file')?.addEventListener('change', (e) => {
+    document.getElementById('input-logo-file')?.addEventListener('change', async (e) => {
       const file = e.target.files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          this.kwitansi.logo = event.target?.result;
-          this.renderKwitansi();
-          this.autoSaveDraft();
-          this.showToast('Logo berhasil diunggah', 'success');
-        };
-        reader.readAsDataURL(file);
+      if (!file) return;
+      try {
+        this.kwitansi.logo = await window.sanitizeImageFile(file, { maxKB: 512 });
+        this.renderKwitansi();
+        this.autoSaveDraft();
+        this.showToast('Logo berhasil diunggah', 'success');
+      } catch (err) {
+        this.showToast(err.message || 'Gagal mengunggah logo', 'error');
+        e.target.value = '';
       }
     });
 
@@ -903,7 +912,7 @@ class KwitansiApp {
       id: 'kwt_' + Date.now().toString(36),
       number: 'KWT-2026-088',
       referenceNumber: 'INV-2026-042',
-      date: new Date().toISOString().slice(0, 10),
+      date: (window.Format ? window.Format.todayLocal() : new Date().toISOString().slice(0, 10)),
       senderCity: 'Jakarta Selatan',
       clientName: 'PT SINAR BERKAH LOGISTIK',
       clientPhone: '0812-9988-7766',
@@ -979,6 +988,7 @@ class KwitansiApp {
         <td class="py-3 px-4 font-mono font-bold text-slate-900 dark:text-slate-100">${formatCurrency(item.amount || 0, curr, false)}</td>
         <td class="py-3 px-4">${KwitansiTemplates.renderStatusBadge(item.status)}</td>
         <td class="py-3 px-4 text-right">
+          ${window.QrisPay && window.QrisPay.isPayable(item) ? window.QrisPay.buttonHtml(item.id) : ''}
           <button type="button" class="btn-load-history px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold rounded-lg hover:bg-blue-100 transition mr-1" data-id="${item.id}">Buka</button>
           <button type="button" class="btn-del-history p-1 text-slate-400 hover:text-rose-500 rounded-lg transition" data-id="${item.id}" title="Hapus"><i data-lucide="trash-2" class="w-3.5 h-3.5 inline"></i></button>
         </td>
@@ -1001,6 +1011,22 @@ class KwitansiApp {
           this.updateStatsCards();
           this.showToast('Kwitansi dihapus dari riwayat', 'info');
         }
+      });
+    });
+
+    // Bayar QRIS statis (server menentukan nominal + kode unik 2 digit).
+    tbody.querySelectorAll('.btn-qris-pay').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.dataset.id;
+        if (window.QrisPay) window.QrisPay.open('kwitansi', id, {
+          onClean: async () => {
+            await StorageManager.syncFromServer('kwitansi');
+            if (this.kwitansi && this.kwitansi.id === id) this.kwitansi.hasWatermark = false;
+            this.renderHistoryTable();
+            this.renderKwitansi();
+            this.showToast('Kwitansi bebas watermark — pembayaran terkonfirmasi!', 'success');
+          }
+        });
       });
     });
 
@@ -1059,8 +1085,15 @@ class KwitansiApp {
     const element = document.getElementById('kwitansi-paper-preview');
     if (!element) return;
 
+    // Ensure the QR is freshly rendered (synchronously) before html2pdf snapshots the DOM (#53).
+    if (this.kwitansi.showQrCode && this.kwitansi.qrPayload) {
+      ExportManager.generateQrCode('kwitansi-qr-code', this.kwitansi.qrPayload);
+      await new Promise(r => setTimeout(r, 0));
+    }
+
     const isLandscape = this.kwitansi.paperFormat !== 'a4';
-    const filename = `Kwitansi_${this.kwitansi.number || '001'}_${(this.kwitansi.clientName || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+    const _slug = (window.Format ? window.Format.slug : (s) => String(s || '').replace(/[^a-zA-Z0-9]/g, '_'));
+    const filename = `Kwitansi_${_slug(this.kwitansi.number) || '001'}_${_slug(this.kwitansi.clientName) || 'Client'}.pdf`;
 
     // Save previous transform to prevent mobile zoom scaling artifacts
     const prevTransform = element.style.transform;
@@ -1112,7 +1145,8 @@ class KwitansiApp {
     const totals = this.calculateTotals();
     const curr = this.kwitansi.currency || 'IDR';
     const dec = this.kwitansi.useDecimals;
-    const hasWatermark = typeof window.AuthManager !== 'undefined' ? window.AuthManager.shouldShowWatermark() : true;
+    const userWm = typeof window.AuthManager !== 'undefined' ? window.AuthManager.shouldShowWatermark() : true;
+    const hasWatermark = userWm && this.kwitansi.hasWatermark !== false;
 
     let text = '';
     if (hasWatermark) {
@@ -1290,10 +1324,13 @@ class KwitansiApp {
     const toast = document.createElement('div');
     const bgClass = type === 'success' ? 'bg-emerald-600 text-white' : (type === 'error' ? 'bg-rose-600 text-white' : 'bg-slate-900 text-white');
     toast.className = `${bgClass} px-4 py-2.5 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2 animate-fade-in pointer-events-auto`;
-    toast.innerHTML = `
-      <i data-lucide="${type === 'success' ? 'check-circle' : (type === 'error' ? 'alert-triangle' : 'info')}" class="w-4 h-4"></i>
-      <span>${message}</span>
-    `;
+    const iconEl = document.createElement('i');
+    iconEl.setAttribute('data-lucide', type === 'success' ? 'check-circle' : (type === 'error' ? 'alert-triangle' : 'info'));
+    iconEl.className = 'w-4 h-4';
+    const msgEl = document.createElement('span');
+    msgEl.textContent = message;
+    toast.appendChild(iconEl);
+    toast.appendChild(msgEl);
     container.appendChild(toast);
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
@@ -1305,6 +1342,17 @@ class KwitansiApp {
 }
 
 // Bootstrap on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   window.kwitansiApp = new KwitansiApp();
+  if (window.AuthManager) {
+    const user = await window.AuthManager.init();
+    window.StorageManager.setUser(user ? user.id : null);
+    if (user) {
+      await window.StorageManager.syncFromServer('kwitansi');
+      window.kwitansiApp.renderHistoryTable();
+      window.kwitansiApp.updateStatsCards();
+    }
+    window.kwitansiApp.updateAuthNavUI();
+    window.kwitansiApp.renderKwitansi();
+  }
 });

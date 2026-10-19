@@ -10,7 +10,7 @@ function getInitialSuratJalan() {
     number: 'SJ-2026-001',
     poNumber: 'PO-2026-088',
     invoiceRef: 'INV-2026-042',
-    date: new Date().toISOString().slice(0, 10),
+    date: (window.Format ? window.Format.todayLocal() : new Date().toISOString().slice(0, 10)),
     senderCity: 'Jakarta',
     status: 'in_transit', // delivered, in_transit, ready, completed, partial, draft
     template: 'warehouse', // warehouse, corporate, minimalist, cargo
@@ -99,14 +99,21 @@ class SuratJalanApp {
     this.updateStatsCards();
     this.updateAuthNavUI();
 
-    window.addEventListener('auth:change', () => {
+    window.addEventListener('auth:change', async (e) => {
+      const user = e.detail;
+      StorageManager.setUser(user ? user.id : null);
       this.updateAuthNavUI();
+      if (user) {
+        await StorageManager.syncFromServer('surat-jalan');
+        this.renderHistoryTable();
+        this.updateStatsCards();
+      }
       this.renderSuratJalan();
     });
   }
 
   initTheme() {
-    const savedTheme = localStorage.getItem('invoice_theme');
+    const savedTheme = localStorage.getItem('invoicecraft_theme');
     if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       document.documentElement.classList.add('dark');
     } else {
@@ -116,7 +123,7 @@ class SuratJalanApp {
 
   toggleTheme() {
     const isDark = document.documentElement.classList.toggle('dark');
-    localStorage.setItem('invoice_theme', isDark ? 'dark' : 'light');
+    localStorage.setItem('invoicecraft_theme', isDark ? 'dark' : 'light');
     if (typeof lucide !== 'undefined') lucide.createIcons();
   }
 
@@ -478,11 +485,9 @@ class SuratJalanApp {
     // Render Template HTML
     previewPaper.innerHTML = renderer.call(SuratJalanTemplates, this.suratJalan);
 
-    // QR Code
+    // QR Code — synchronous so the canvas is ready before PDF capture (#53).
     if (this.suratJalan.showQrCode && this.suratJalan.qrPayload) {
-      setTimeout(() => {
-        ExportManager.generateQrCode('surat-jalan-qr-code', this.suratJalan.qrPayload);
-      }, 30);
+      ExportManager.generateQrCode('surat-jalan-qr-code', this.suratJalan.qrPayload);
     }
 
     // Quick Stats Bar in Sidebar
@@ -513,17 +518,17 @@ class SuratJalanApp {
     });
 
     // Logo Upload & Remove
-    document.getElementById('input-logo-file')?.addEventListener('change', (e) => {
+    document.getElementById('input-logo-file')?.addEventListener('change', async (e) => {
       const file = e.target.files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          this.suratJalan.logo = event.target?.result;
-          this.renderSuratJalan();
-          this.autoSaveDraft();
-          this.showToast('Logo berhasil diunggah', 'success');
-        };
-        reader.readAsDataURL(file);
+      if (!file) return;
+      try {
+        this.suratJalan.logo = await window.sanitizeImageFile(file, { maxKB: 512 });
+        this.renderSuratJalan();
+        this.autoSaveDraft();
+        this.showToast('Logo berhasil diunggah', 'success');
+      } catch (err) {
+        this.showToast(err.message || 'Gagal mengunggah logo', 'error');
+        e.target.value = '';
       }
     });
 
@@ -711,7 +716,7 @@ class SuratJalanApp {
     // Dynamic Items Line
     if (target.dataset.index !== undefined) {
       const idx = Number(target.dataset.index);
-      const item = this.suratJalan.items[idx];
+      const item = (this.suratJalan.items || [])[idx];
       if (item) {
         if (target.classList.contains('item-sku')) item.sku = target.value;
         if (target.classList.contains('item-name')) item.name = target.value;
@@ -772,7 +777,7 @@ class SuratJalanApp {
       number: 'SJ-2026-088',
       poNumber: 'PO-2026-042',
       invoiceRef: 'INV-2026-042',
-      date: new Date().toISOString().slice(0, 10),
+      date: (window.Format ? window.Format.todayLocal() : new Date().toISOString().slice(0, 10)),
       senderCity: 'Jakarta Utara',
       status: 'in_transit',
       driverName: 'Bambang Supriyanto',
@@ -842,6 +847,7 @@ class SuratJalanApp {
           <td class="py-3 px-4 font-mono font-bold text-slate-800 dark:text-slate-200">${(item.items || []).length} Item (${totalQty} Unit)</td>
           <td class="py-3 px-4">${SuratJalanTemplates.renderStatusBadge(item.status)}</td>
           <td class="py-3 px-4 text-right">
+            ${window.QrisPay && window.QrisPay.isPayable(item) ? window.QrisPay.buttonHtml(item.id) : ''}
             <button type="button" class="btn-load-history px-2.5 py-1 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-bold rounded-lg hover:bg-amber-100 transition mr-1" data-id="${item.id}">Buka</button>
             <button type="button" class="btn-del-history p-1 text-slate-400 hover:text-rose-500 rounded-lg transition" data-id="${item.id}" title="Hapus"><i data-lucide="trash-2" class="w-3.5 h-3.5 inline"></i></button>
           </td>
@@ -865,6 +871,22 @@ class SuratJalanApp {
           this.updateStatsCards();
           this.showToast('Surat jalan dihapus dari riwayat', 'info');
         }
+      });
+    });
+
+    // Bayar QRIS statis (server menentukan nominal + kode unik 2 digit).
+    tbody.querySelectorAll('.btn-qris-pay').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.dataset.id;
+        if (window.QrisPay) window.QrisPay.open('surat-jalan', id, {
+          onClean: async () => {
+            await StorageManager.syncFromServer('surat-jalan');
+            if (this.suratJalan && this.suratJalan.id === id) this.suratJalan.hasWatermark = false;
+            this.renderHistoryTable();
+            this.renderSuratJalan();
+            this.showToast('Surat jalan bebas watermark — pembayaran terkonfirmasi!', 'success');
+          }
+        });
       });
     });
 
@@ -922,8 +944,15 @@ class SuratJalanApp {
     const element = document.getElementById('surat-jalan-paper-preview');
     if (!element) return;
 
+    // Re-render QR synchronously before html2pdf snapshots (#53).
+    if (this.suratJalan.showQrCode && this.suratJalan.qrPayload) {
+      ExportManager.generateQrCode('surat-jalan-qr-code', this.suratJalan.qrPayload);
+      await new Promise(r => setTimeout(r, 0));
+    }
+
     const isLandscape = this.suratJalan.paperFormat === 'a5-landscape';
-    const filename = `Surat_Jalan_${this.suratJalan.number || '001'}_${(this.suratJalan.recipientName || 'Klien').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+    const _slug = (window.Format ? window.Format.slug : (s) => String(s || '').replace(/[^a-zA-Z0-9]/g, '_'));
+    const filename = `Surat_Jalan_${_slug(this.suratJalan.number) || '001'}_${_slug(this.suratJalan.recipientName) || 'Klien'}.pdf`;
 
     // Save previous transform to prevent mobile zoom scaling artifacts
     const prevTransform = element.style.transform;
@@ -967,7 +996,8 @@ class SuratJalanApp {
   }
 
   shareViaWhatsApp() {
-    const hasWatermark = typeof window.AuthManager !== 'undefined' ? window.AuthManager.shouldShowWatermark() : true;
+    const userWm = typeof window.AuthManager !== 'undefined' ? window.AuthManager.shouldShowWatermark() : true;
+    const hasWatermark = userWm && this.suratJalan.hasWatermark !== false;
 
     let text = '';
     if (hasWatermark) {
@@ -1156,10 +1186,13 @@ class SuratJalanApp {
     const toast = document.createElement('div');
     const bgClass = type === 'success' ? 'bg-amber-600 text-white' : (type === 'error' ? 'bg-rose-600 text-white' : 'bg-slate-900 text-white');
     toast.className = `${bgClass} px-4 py-2.5 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2 animate-fade-in pointer-events-auto`;
-    toast.innerHTML = `
-      <i data-lucide="${type === 'success' ? 'check-circle' : (type === 'error' ? 'alert-triangle' : 'info')}" class="w-4 h-4"></i>
-      <span>${message}</span>
-    `;
+    const iconEl = document.createElement('i');
+    iconEl.setAttribute('data-lucide', type === 'success' ? 'check-circle' : (type === 'error' ? 'alert-triangle' : 'info'));
+    iconEl.className = 'w-4 h-4';
+    const msgEl = document.createElement('span');
+    msgEl.textContent = message;
+    toast.appendChild(iconEl);
+    toast.appendChild(msgEl);
     container.appendChild(toast);
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
@@ -1171,6 +1204,17 @@ class SuratJalanApp {
 }
 
 // Bootstrap on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   window.suratJalanApp = new SuratJalanApp();
+  if (window.AuthManager) {
+    const user = await window.AuthManager.init();
+    window.StorageManager.setUser(user ? user.id : null);
+    if (user) {
+      await window.StorageManager.syncFromServer('surat-jalan');
+      window.suratJalanApp.renderHistoryTable();
+      window.suratJalanApp.updateStatsCards();
+    }
+    window.suratJalanApp.updateAuthNavUI();
+    window.suratJalanApp.renderSuratJalan();
+  }
 });

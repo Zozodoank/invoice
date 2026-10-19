@@ -5,8 +5,15 @@
 class SignaturePadManager {
   constructor(canvasId, onChangeCallback) {
     this.canvas = document.getElementById(canvasId);
-    if (!this.canvas) return;
-    
+    // No canvas -> operate in a safe disabled mode (never throw, render nothing).
+    if (!this.canvas) {
+      this.disabled = true;
+      this.hasDrawn = false;
+      this.onChange = onChangeCallback || (() => {});
+      return;
+    }
+    this.disabled = false;
+
     this.ctx = this.canvas.getContext('2d');
     this.onChange = onChangeCallback || (() => {});
     this.isDrawing = false;
@@ -19,10 +26,13 @@ class SignaturePadManager {
   }
 
   initCanvas() {
-    // Set actual canvas resolution vs display size
+    // Set actual canvas resolution vs display size; measure the backing store now.
     const rect = this.canvas.getBoundingClientRect();
-    this.canvas.width = rect.width * 2 || 600;
-    this.canvas.height = rect.height * 2 || 240;
+    const w = rect.width || 300;
+    const h = rect.height || 120;
+    this.canvas.width = w * 2;
+    this.canvas.height = h * 2;
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.scale(2, 2);
 
     this.ctx.strokeStyle = '#1e293b';
@@ -62,8 +72,10 @@ class SignaturePadManager {
   }
 
   startDrawing(e) {
+    if (this.disabled) return;
     const rect = this.canvas.getBoundingClientRect();
-    if (rect.width > 0 && Math.abs(this.canvas.width - rect.width * 2) > 10 && !this.hasDrawn) {
+    // Re-measure the backing store whenever the display size has changed.
+    if (rect.width > 0 && Math.abs(this.canvas.width - rect.width * 2) > 10) {
       this.initCanvas();
     }
     this.isDrawing = true;
@@ -73,7 +85,7 @@ class SignaturePadManager {
   }
 
   draw(e) {
-    if (!this.isDrawing) return;
+    if (this.disabled || !this.isDrawing) return;
     const { x, y } = this.getCoordinates(e);
 
     this.ctx.beginPath();
@@ -96,17 +108,21 @@ class SignaturePadManager {
   }
 
   clear() {
+    if (this.disabled) return;
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.hasDrawn = false;
-    this.onChange('');
+    // clear() is a pure canvas reset — it must NOT fire onChange. Callers that need
+    // to persist the empty state do so explicitly (keeps drawing-side effects separate).
   }
 
   getDataUrl() {
-    if (!this.hasDrawn) return '';
+    if (this.disabled) return null;
+    if (!this.hasDrawn) return null;
     return this.canvas.toDataURL('image/png');
   }
 
   loadFromDataUrl(dataUrl) {
+    if (this.disabled) return;
     if (!dataUrl) {
       this.clear();
       return;

@@ -15,7 +15,11 @@ const InvoiceTemplates = {
       cancelled: { id: 'DIBATALKAN', en: 'CANCELLED', bg: 'bg-gray-200 text-gray-700 border-gray-400' }
     };
     
-    const config = statusMap[status] || statusMap.pending;
+    // Unknown enum value => neutral "TIDAK DIKETAHUI", never a silent LUNAS (#38).
+    const config = statusMap[status] || (status ? null : statusMap.pending);
+    if (!config) {
+      return `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase border bg-rose-100 text-rose-800 border-rose-300">${lang === 'id' ? 'TIDAK DIKETAHUI' : 'UNKNOWN'}</span>`;
+    }
     const label = lang === 'id' ? config.id : config.en;
     
     return `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase border ${config.bg}">${label}</span>`;
@@ -71,9 +75,15 @@ const InvoiceTemplates = {
    * Displayed when user is NOT logged in or has inactive subscription
    */
   renderWatermark(invoice) {
-    const showWatermark = invoice && invoice.showWatermark !== undefined
-      ? invoice.showWatermark
-      : (typeof window.AuthManager !== 'undefined' ? window.AuthManager.shouldShowWatermark() : true);
+    // Watermark authority lives on the SERVER (entitlement). The document object
+    // can never override it (#20). Default is the most restrictive.
+    // Per-document relief is honoured ONLY when the server-saved row itself
+    // carries hasWatermark === false (e.g. paid via static QRIS) — local drafts
+    // never have that flag, so they fall back to the per-user decision.
+    const userLevelWm = (typeof window.AuthManager !== 'undefined')
+      ? window.AuthManager.shouldShowWatermark()
+      : true;
+    const showWatermark = userLevelWm && invoice.hasWatermark !== false;
 
     if (!showWatermark) return '';
 
@@ -434,8 +444,6 @@ const InvoiceTemplates = {
                   <span>${formatCurrency(totals.balanceDue, curr, dec)}</span>
                 </div>
               ` : ''}
-            </div>
-          </div>
             </div>
           </div>
         </div>
@@ -812,8 +820,8 @@ const InvoiceTemplates = {
             <span>${invoice.date || ''}</span>
           </div>
           <div class="flex justify-between">
-            <span>Klien: ${invoice.clientName || 'Umum'}</span>
-            ${invoice.showStatus !== false ? `<span class="uppercase font-bold">${invoice.status ? (invoice.status === 'paid' ? 'LUNAS' : invoice.status.toUpperCase()) : 'LUNAS'}</span>` : ''}
+            <span>Klien: ${window.esc(invoice.clientName || 'Umum')}</span>
+            ${invoice.showStatus !== false ? (() => { const m = { paid: 'LUNAS', pending: 'MENUNGGU', overdue: 'JATUH TEMPO', draft: 'DRAFT', cancelled: 'DIBATALKAN' }; const lbl = invoice.status ? (m[invoice.status] || 'TIDAK DIKETAHUI') : 'MENUNGGU'; return `<span class="uppercase font-bold">${window.esc(lbl)}</span>`; })() : ''}
           </div>
         </div>
 
@@ -880,8 +888,14 @@ const InvoiceTemplates = {
    * Main Dispatcher
    */
   render(invoice, totals) {
-    const templateName = invoice.template || 'modern';
-    const renderer = this[templateName] || this.modern;
+    // Allow-list template renderers (#52): never dispatch to constructor/prototype/
+    // internal helpers chosen via a crafted `template` value.
+    const ALLOWED = ['modern', 'minimalist', 'classic', 'creative', 'receipt'];
+    const name = invoice.template;
+    const renderer = (typeof name === 'string' && ALLOWED.includes(name) &&
+      Object.prototype.hasOwnProperty.call(this, name) && typeof this[name] === 'function')
+      ? this[name]
+      : this.modern;
     return renderer.call(this, invoice, totals);
   }
 };

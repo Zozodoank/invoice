@@ -1,139 +1,141 @@
-# 🚀 Panduan Lengkap Deploy Invoice Generator ke Cloudflare Pages
+# 🚀 Panduan Deploy InvoiceCraft ke Cloudflare Pages + Functions + D1
 
-Panduan ini menjelaskan cara mempublikasikan website **Invoice Generator Pro** ke **Cloudflare Pages** secara gratis, super cepat, memiliki sertifikat SSL otomatis, dan performa CDN global tanpa batas kuota bandwidth.
+Arsitektur backend aplikasi ini adalah **Cloudflare Pages** (aset statis) + **Pages Functions** (API di folder `functions/`) + **D1** (SQLite). Autentikasi Google OAuth, penyimpanan dokumen, entitlement watermark, dan Portal Superadmin semuanya dilayani oleh Functions dan membaca/menulis D1 — **Supabase sudah dilepas**.
 
----
-
-## 📌 Ringkasan 3 Metode Deploy
-
-| Metode | Tingkat Kesulitan | Waktu | Cocok Untuk |
-|---|---|---|---|
-| **Metode 1: Direct Upload (Drag & Drop)** | ⭐ Sangat Mudah | ~1 Menit | Pemula / Tanpa Git |
-| **Metode 2: Terhubung ke GitHub / GitLab** | ⭐⭐ Mudah | ~3 Menit | Update otomatis saat push kode |
-| **Metode 3: Cloudflare Wrangler CLI** | ⭐⭐⭐ Menengah | ~2 Menit | Developer / Terminal |
+> Keamanan: **jangan pernah** meng-commit atau mengunggah `.env`, kunci rahasia, atau ekspor backup berisi data pengguna. Semua secret dibuat lewat `wrangler secret put`, bukan di file.
 
 ---
 
-## ⚡ METODE 1: Direct Upload (Paling Cepat - 1 Menit)
+## 📌 Prasyarat
 
-Metode ini tidak memerlukan instalasi Git ataupun Node.js.
-
-### Langkah-langkah:
-1. **Buka Dashboard Cloudflare**:
-   - Kunjungi [https://dash.cloudflare.com](https://dash.cloudflare.com) dan login ke akun Cloudflare Anda.
-2. **Navigasi ke Menu Pages**:
-   - Pada sidebar kiri, klik menu **Workers & Pages** -> pilih **Create application**.
-   - Pilih tab **Pages** -> klik tombol **Upload assets** (*Direct Upload*).
-3. **Beri Nama Proyek**:
-   - Masukkan *Project name*, contoh: `invoice-generator-pro`.
-4. **Unggah Folder Proyek**:
-   - Tarik (*drag-and-drop*) seluruh folder proyek `invoice-generator` (yang berisi `index.html`, `css/`, dan `js/`) ke kotak unggah Cloudflare.
-   - Atau klik *Select folder* lalu pilih folder:
-     `C:\Users\SEMOGA AWET\.gemini\antigravity\scratch\invoice-generator`
-5. **Klik "Deploy site"**:
-   - Cloudflare akan memproses dan website Anda langsung aktif dengan domain gratis:
-     👉 `https://invoice-generator-pro.pages.dev`
+- Node.js 18+ (untuk `npx wrangler`).
+- Akun Cloudflare dengan akses **Pages** dan **D1**.
+- **Google OAuth Client ID** (tipe *Web application*) dari Google Cloud Console. Authorized JavaScript origins = domain situs Anda (mis. `https://nama-anda.pages.dev` dan `http://localhost:8788`).
 
 ---
 
-## 🔄 METODE 2: Deploy via GitHub (Continuous Deployment)
+## 1️⃣ Buat Database D1 & Terapkan Skema
 
-Jika Anda ingin website otomatis terupdate setiap kali melakukan perubahan kode:
+```bash
+# dari folder proyek (root repo), JANGAN memakai path absolut privat
+npx wrangler d1 create invoicecraft_db
+```
 
-### Langkah-langkah:
-1. **Push Proyek ke Repository GitHub**:
-   - Buat repository baru di GitHub (misal: `invoice-generator-pro`).
-   - Push berkas dari komputer Anda ke repository tersebut:
-     ```bash
-     git init
-     git add .
-     git commit -m "Initial release Invoice Generator"
-     git branch -M main
-     git remote add origin https://github.com/USERNAME/invoice-generator-pro.git
-     git push -u origin main
-     ```
-2. **Hubungkan di Cloudflare Pages**:
-   - Masuk ke **Cloudflare Dashboard** -> **Workers & Pages** -> **Create application** -> **Pages**.
-   - Pilih **Connect to Git** dan hubungkan akun GitHub Anda.
-   - Pilih repository `invoice-generator-pro`.
-3. **Pengaturan Build**:
-   - *Framework preset*: **None** (Plain HTML/JS)
-   - *Build command*: (Biarkan kosong)
-   - *Build output directory*: `.` (atau biarkan kosong/root)
-4. **Klik "Save and Deploy"**:
-   - Selesai! Setiap kali Anda melakukan `git push`, Cloudflare Pages akan otomatis mem-build dan memperbarui website secara instan.
+Salin `database_id` yang dicetak ke `wrangler.toml` (`[[d1_databases]]`). Lalu terapkan skema:
+
+```bash
+# lokal (pengujian)
+npx wrangler d1 execute invoicecraft_db --local  --file=./cloudflare_d1_schema.sql
+# produksi
+npx wrangler d1 execute invoicecraft_db --remote --file=./cloudflare_d1_schema.sql
+```
+
+> Skema tunggal `cloudflare_d1_schema.sql` sudah memuat tabel `users`, `plans`, `invoices/invoice_items`, `kwitansis/kwitansi_items`, `surat_jalans/surat_jalan_items`, `billing_config` (tarif per-dokumen + QRIS statis), dan `document_payments` (pencocokan nominal via suffix 2 digit), beserta baris seed `is_superadmin = 1` untuk email superadmin. Semua statement idempotent (`IF NOT EXISTS` / `OR IGNORE`), sehingga **upgrade cukup dengan menjalankan ulang file yang sama** (`--remote` untuk produksi). File `migrasi1`/`migrasi1.sql` lama sudah dihapus — tidak perlu dijalankan. Setelah skema diterapkan, unggah gambar QRIS statis Anda lewat kartu **Tarif & QRIS** di halaman superadmin.
+
+Verifikasi hasil migrasi (kolom & foreign key benar):
+
+```bash
+npx wrangler d1 execute invoicecraft_db --local --command "PRAGMA foreign_key_check;"
+```
 
 ---
 
-## 💻 METODE 3: Deploy via Wrangler CLI (Command Line)
+## 2️⃣ Konfigurasi Binding & Variabel (`wrangler.toml`)
 
-Jika Anda menyukai deployment langsung via terminal/PowerShell:
+```toml
+pages_build_output_dir = "."
 
-1. **Instal & Login Wrangler**:
-   ```powershell
-   npx wrangler login
-   ```
-2. **Deploy Langsung Folder ke Cloudflare Pages**:
-   ```powershell
-   cd "C:\Users\SEMOGA AWET\.gemini\antigravity\scratch\invoice-generator"
-   npx wrangler pages deploy . --project-name=invoice-generator-pro
-   ```
+[[d1_databases]]
+binding = "DB"
+database_name = "invoicecraft_db"
+database_id = "<database_id_anda>"
 
----
+[vars]
+GOOGLE_CLIENT_ID = "<CLIENT_ID publik>"
+TZ = "Asia/Jakarta"
+```
 
-## 🌐 Menghubungkan Custom Domain Sendiri (Opsional)
-
-Jika Anda memiliki domain pribadi (misal: `faktur.perusahaananda.com` atau `invoicemu.com`):
-
-1. Masuk ke halaman proyek di **Cloudflare Dashboard** -> **Workers & Pages** -> pilih proyek `invoice-generator-pro`.
-2. Klik tab **Custom domains**.
-3. Klik tombol **Set up a custom domain**.
-4. Masukkan nama domain/subdomain Anda (misal: `invoice.domainanda.com`).
-5. Klik **Continue** -> Cloudflare akan otomatis mengonfigurasi DNS Record dan menerbitkan sertifikat SSL/HTTPS gratis.
+`GOOGLE_CLIENT_ID` boleh publik (baca lewat `/api/config`). **Jangan** menaruh secret di sini.
 
 ---
 
-## 🗄️ Pengaturan Database Cloudflare D1 (SQLite)
+## 3️⃣ Secret (Hanya via `wrangler secret`)
 
-Jika menggunakan **Cloudflare D1 (SQLite Serverless Database)**:
+```bash
+# untuk pratinjau lokal, letakkan di .dev.vars (SUDAH di-gitignore):
+#   SESSION_SECRET=<acak panjang>
+#   SUPERADMIN_EMAIL=megakomindo@gmail.com
+#   PAYMENT_WEBHOOK_SECRET=<acak, sama dengan yang dipakai di makro MacroDroid>
 
-1. **Buat Database D1**:
-   ```bash
-   npx wrangler d1 create invoicecraft_db
-   ```
-2. **Jalankan Skema Database (`cloudflare_d1_schema.sql`)**:
-   - Untuk database lokal (pengujian):
-     ```bash
-     npx wrangler d1 execute invoicecraft_db --local --file=./cloudflare_d1_schema.sql
-     ```
-   - Untuk database produksi di Cloudflare:
-     ```bash
-     npx wrangler d1 execute invoicecraft_db --remote --file=./cloudflare_d1_schema.sql
-     ```
-3. **Jalankan Skema Migrasi Modul Kwitansi & Surat Jalan (`migrasi1.sql` / `migrasi1`)**:
-   - Untuk database lokal:
-     ```bash
-     npx wrangler d1 execute invoicecraft_db --local --file=./migrasi1.sql
-     ```
-   - Untuk database produksi di Cloudflare:
-     ```bash
-     npx wrangler d1 execute invoicecraft_db --remote --file=./migrasi1.sql
-     ```
-4. **Akun Superadmin Utama**:
-   - Skema database secara otomatis telah menyertakan akun Superadmin utama:
-     `email`: `megakomindo@gmail.com`
-     `role`: `superadmin` / `is_superadmin = 1`
-     `plan`: `enterprise` (aktif lifetime)
-5. **Login OAuth Superadmin**:
-   - Tombol **Superadmin** akan otomatis muncul secara eksklusif saat login dengan email Superadmin `megakomindo@gmail.com`.
+# untuk produksi Pages:
+npx wrangler pages secret put SESSION_SECRET   --project-name=invoice-generator-pro
+npx wrangler pages secret put SUPERADMIN_EMAIL --project-name=invoice-generator-pro
+npx wrangler pages secret put PAYMENT_WEBHOOK_SECRET --project-name=invoice-generator-pro
+```
+
+- `SESSION_SECRET` — kunci HMAC untuk menandatangani cookie sesi.
+- `SUPERADMIN_EMAIL` — email yang **boleh** memegang peran superadmin (harus **juga** punya `users.is_superadmin = 1` di DB agar akses diberikan; ini menggandakan kunci sehingga promosi tak mungkin dari input klien).
+- `PAYMENT_WEBHOOK_SECRET` — kunci bersama header `X-Payment-Key` pada `POST /api/payments/confirm`; dipanggil makro MacroDroid (bukan browser) saat notifikasi pembayaran QRIS statis masuk. Rotasi = ulangi `secret put` + perbarui makro.
 
 ---
 
-## 🛡️ Pengaturan Supabase di Cloudflare Pages (Opsi Alternatif)
+## 4️⃣ Jalankan Secara Lokal
 
-Jika mengintegrasikan Supabase Client ke frontend:
-1. Pada proyek Cloudflare Pages, buka tab **Settings** -> **Environment variables**.
-2. Tambahkan variabel:
-   - `SUPABASE_URL`: `https://xxxxxxxxxxxx.supabase.co`
-   - `SUPABASE_ANON_KEY`: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`
-3. Variabel ini siap digunakan oleh frontend script.
+```bash
+npx wrangler pages dev . --d1 DB
+```
+
+Buka `http://localhost:8788`. Coba alur: `auth.html` (login Google) → `/api/me` → buat dokumen (tersimpan ke D1) → `/api/entitlements` (watermark) → Portal Superadmin (`superadmin.html`, hanya muncul bila role server = superadmin).
+
+### Alternatif bila `wrangler` gagal di Windows (`X [ERROR] write EOF`)
+
+Error itu datang dari runtime **workerd** bawaan wrangler (bug known: cloudflare/workers-sdk#9900 — biasanya karena Visual C++ Redistributable belum ada: `winget install Microsoft.VCRedist.2015+.x64`). Sebagai cadangan uji, repo ini menyediakan **preview server Node** yang menjalankan **kode `functions/` yang sama** di atas `node:sqlite` (rute & binding sama seperti Pages):
+
+```bash
+node scripts/local-preview-server.mjs 8788   # serves app + API di http://localhost:8788
+node scripts/verify-api.mjs 8788             # 34 pengecekan auth/trial/watermark/admin/IDOR
+node scripts/verify-units.mjs                # 13 pengecekan esc/safeColor/format/kalkulasi PPN
+```
+
+> Preview server hanya untuk uji luring — deploy produksi tetap lewat `wrangler pages deploy` (Pages Functions + D1 asli).
+
+---
+
+## 5️⃣ Deploy
+
+### Metode A — Wrangler CLI (disarankan, menyertakan Functions)
+```bash
+npx wrangler pages deploy . --project-name=invoice-generator-pro
+```
+
+### Metode B — Terhubung ke GitHub (Continuous Deployment)
+```bash
+git init && git add . && git commit -m "InvoiceCraft: Cloudflare Pages + Functions + D1"
+git branch -M main
+git remote add origin https://github.com/USERNAME/invoice-generator-pro.git
+git push -u origin main
+```
+Di Dashboard: **Workers & Pages → Create application → Pages → Connect to Git**.
+- *Framework preset*: **None**
+- *Build command*: (kosong)
+- *Build output directory*: `.`
+Setelah terhubung, tambahkan `GOOGLE_CLIENT_ID` (Environment variable) + `SESSION_SECRET`/`SUPERADMIN_EMAIL` (Secret) pada tab **Settings → Environment variables**.
+
+### Metode C — Direct Upload
+Folder proyek (termasuk `functions/`) bisa di-*drag & drop* lewat **Workers & Pages → Upload assets**. Pastikan binding D1 (`DB`) ditambahkan di **Settings → Functions → D1 database bindings**, dan secret ditambahkan di tab yang sama.
+
+---
+
+## 6️⃣ Custom Domain (Opsional)
+
+Buka proyek → tab **Custom domains** → **Set up a custom domain** → masukkan domain. Sertifikat HTTPS diterbitkan otomatis. Perbarui **Authorized JavaScript origins** di Google Cloud Console dengan domain baru.
+
+---
+
+## ✅ Checklist Pasca-Deploy
+
+- [ ] Login Google menghasilkan cookie sesi HttpOnly & `/api/me` mengembalikan identitas + `role`.
+- [ ] Non-superadmin **tidak** bisa membuka `superadmin.html` (dashboard tersembunyi; endpoint admin menolak 403).
+- [ ] Pendaftar baru melihat banner bonus 3 dokumen; dokumen ke-4 berwatermark.
+- [ ] Dokumen tersimpan/hilang sesuai `user_id` (uji: logout & login akun lain → daftar terpisah).
+- [ ] Tidak ada file `.env` / secret / backup yang ter-commit.

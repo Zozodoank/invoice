@@ -21,7 +21,11 @@ const KwitansiTemplates = {
       cancelled: { text: 'DIBATALKAN', bg: 'bg-rose-100 text-rose-800 border-rose-300' }
     };
 
-    const config = statusMap[status] || statusMap.paid;
+    // Unknown/enum-mismatched status must NOT silently render as LUNAS (#38).
+    const config = statusMap[status];
+    if (!config) {
+      return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider uppercase border bg-rose-100 text-rose-800 border-rose-300">TIDAK DIKETAHUI</span>`;
+    }
     return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider uppercase border ${config.bg}">${config.text}</span>`;
   },
 
@@ -216,9 +220,13 @@ const KwitansiTemplates = {
    * Watermark support
    */
   renderWatermark(kwitansi) {
-    const showWatermark = kwitansi && kwitansi.showWatermark !== undefined
-      ? kwitansi.showWatermark
-      : (typeof window.AuthManager !== 'undefined' ? window.AuthManager.shouldShowWatermark() : true);
+    // Server is the sole watermark authority (#20); the document cannot override it.
+    // Per-document relief is honoured ONLY when the server-saved row itself carries
+    // hasWatermark === false (e.g. paid via static QRIS) — local drafts never set it.
+    const userLevelWm = (typeof window.AuthManager !== 'undefined')
+      ? window.AuthManager.shouldShowWatermark()
+      : true;
+    const showWatermark = userLevelWm && kwitansi.hasWatermark !== false;
 
     if (!showWatermark) return '';
 
@@ -648,7 +656,7 @@ const KwitansiTemplates = {
               <tr>
                 <th class="p-2 w-8 text-center">#</th>
                 <th class="p-2">Deskripsi Rincian Pembayaran</th>
-                <th class="p-2 text-center w-20">Volume</th>
+                <th class="p-2 text-center w-20">Qty</th>
                 <th class="p-2 text-right w-28">Tarif Satuan</th>
                 <th class="p-2 text-right w-32">Jumlah</th>
               </tr>
