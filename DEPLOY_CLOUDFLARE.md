@@ -105,7 +105,7 @@ node scripts/verify-units.mjs                # 13 pengecekan esc/safeColor/forma
 
 ### Metode A — Wrangler CLI (disarankan, menyertakan Functions)
 ```bash
-npx wrangler pages deploy . --project-name=invoice-generator-pro
+npx wrangler pages deploy . --project-name=invoicemega
 ```
 
 ### Metode B — Terhubung ke GitHub (Continuous Deployment)

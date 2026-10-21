@@ -10,7 +10,8 @@
 # Pages Functions API. See docs/architecture.md.
 # ==============================================================================
 
-name = "invoicecraft"
+# MUST match the Cloudflare Pages project name in the dashboard.
+name = "invoicemega"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
