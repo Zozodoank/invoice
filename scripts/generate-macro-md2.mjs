@@ -12,13 +12,22 @@
  * Pakai:          node scripts/generate-macro-md2.mjs [https://app.pages.dev]
  * Hasil:          dist/macrodroid-interactive-qris.md2 (+ .json)
  */
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASE_URL = (process.argv[2] || 'https://YOUR-APP.pages.dev').replace(/\/+$/, '');
+
+// Bake the real X-Payment-Key from .dev.vars (gitignored) so the macro works without
+// manual placeholder editing. Output lands in dist/ (also gitignored) -> treat the
+// generated .md2/.json as SECRET files, never attach them to chat or commits.
+const PAYMENT_KEY =
+  ((existsSync(path.join(ROOT, '.dev.vars'))
+    ? readFileSync(path.join(ROOT, '.dev.vars'), 'utf8')
+    : ''
+  ).match(/^\s*PAYMENT_WEBHOOK_SECRET\s*=\s*(.*?)\s*$/m) || [])[1] || '<GANTI_DENGAN_SECRET>';
 
 // ---------------------------------------------------------------------------
 // Definisi makro (dinormalisasi; field mengikuti konvensi ekspor umum MacroDroid)
@@ -29,7 +38,9 @@ const macro = {
   description: 'Membaca notifikasi dana masuk QRIS (bank/e-wallet merchant), ' +
     'mengekstrak nominal (base + 2 digit unik), lalu mengonfirmasi ke ' +
     BASE_URL + '/api/payments/confirm dengan header X-Payment-Key. ' +
-    'GANTI <GANTI_DENGAN_SECRET> dan aplikasi notifikasi sumber. ' +
+    (PAYMENT_KEY === '<GANTI_DENGAN_SECRET>'
+      ? 'GANTI <GANTI_DENGAN_SECRET> ' : 'Memuat secret dari .dev.vars. ') +
+    'dan pilih aplikasi notifikasi sumber. ' +
     'Panduan resmi: docs/macrodroid-interactive-qris.md',
   uid: 1700000000001,
   active: true,
@@ -63,7 +74,7 @@ const macro = {
         body: '{"amount": {amt}}',
         headers: {
           'Content-Type': 'application/json',
-          'X-Payment-Key': '<GANTI_DENGAN_SECRET>' // = PAYMENT_WEBHOOK_SECRET server
+          'X-Payment-Key': PAYMENT_KEY // = PAYMENT_WEBHOOK_SECRET server
         },
         storeResponseAs: 'httpResp'
       }
@@ -158,4 +169,5 @@ console.log('  ' + md2Path + `  (${md2.length} byte)`);
 console.log('  ' + jsonPath);
 console.log('\nINGAT: import .md2 bisa gagal (format proprietary).');
 console.log('Panduan manual resmi: docs/macrodroid-interactive-qris.md');
-console.log(`Isi placeholder <GANTI_DENGAN_SECRET> = PAYMENT_WEBHOOK_SECRET server (${BASE_URL}).`);
+console.log(`X-Payment-Key: ${PAYMENT_KEY === '<GANTI_DENGAN_SECRET>' ? 'PLACEHOLDER - isi PAYMENT_WEBHOOK_SECRET di .dev.vars' : 'diisi otomatis dari .dev.vars'} (server ${BASE_URL}).`);
+console.log('JANGAN bagikan file hasil ini - memuat secret pembayaran.');

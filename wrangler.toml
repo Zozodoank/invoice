@@ -20,13 +20,14 @@ pages_build_output_dir = "."
 
 # ------------------------------------------------------------------------------
 # D1 binding (exposed to Functions as `env.DB`)
-# Replace database_id with the real value from:
-#   npx wrangler d1 create invoicecraft_db
+# invoicemega_db = current production DB (clean schema from cloudflare_d1_schema.sql).
+# The legacy `invoicecraft_db` (ba60d73b-...) still holds the OLD schema and is kept
+# only as a rollback backup; SQL dump: backups/invoicecraft_db_backup_20261022.sql
 # ------------------------------------------------------------------------------
 [[d1_databases]]
 binding = "DB"
-database_name = "invoicecraft_db"
-database_id = "ba60d73b-9a52-4f0a-ad66-04c678f385fa"
+database_name = "invoicemega_db"
+database_id = "3ad6a7c9-f4cb-4c95-9ba5-a9c103cb7519"
 
 # ------------------------------------------------------------------------------
 # Public, non-secret variables (safe to commit)

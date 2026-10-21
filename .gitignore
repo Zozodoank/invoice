@@ -33,6 +33,8 @@ build/
 # Local data exports / PII backups (NEVER commit)
 *_backup_*.json
 invoicecraft_users_backup_*.json
+*_backup_*.sql
+backups/
 
 # Duplicate legacy migration file (replaced by D1 schema)
 migrasi1

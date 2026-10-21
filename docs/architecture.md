@@ -88,7 +88,7 @@ Cloudflare D1 (SQLite)      — satu-satunya penyimpanan data nyata
 
 | Nama | Bentuk | Lokasi |
 |---|---|---|
-| `DB` (binding D1 `invoicecraft_db`) | Binding | `wrangler.toml` `[[d1_databases]]` |
+| `DB` (binding D1 `invoicemega_db`) | Binding | `wrangler.toml` `[[d1_databases]]` |
 | `GOOGLE_CLIENT_ID`, `TZ` | Var publik | `wrangler.toml` `[vars]` |
 | `SESSION_SECRET`, `SUPERADMIN_EMAIL` | Secret | `wrangler pages secret put` (prod) / `.dev.vars` (lokal, gitignored) |
 | `PAYMENT_WEBHOOK_SECRET` | Secret | Kunci `X-Payment-Key` untuk `/api/payments/confirm` (makro MacroDroid); `wrangler pages secret put` / `.dev.vars` |

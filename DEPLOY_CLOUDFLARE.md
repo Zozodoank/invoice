@@ -18,25 +18,28 @@ Arsitektur backend aplikasi ini adalah **Cloudflare Pages** (aset statis) + **Pa
 
 ```bash
 # dari folder proyek (root repo), JANGAN memakai path absolut privat
-npx wrangler d1 create invoicecraft_db
+npx wrangler d1 create invoicemega_db
 ```
 
 Salin `database_id` yang dicetak ke `wrangler.toml` (`[[d1_databases]]`). Lalu terapkan skema:
 
 ```bash
-# lokal (pengujian)
-npx wrangler d1 execute invoicecraft_db --local  --file=./cloudflare_d1_schema.sql
 # produksi
-npx wrangler d1 execute invoicecraft_db --remote --file=./cloudflare_d1_schema.sql
+npx wrangler d1 execute invoicemega_db --remote --file=./cloudflare_d1_schema.sql
 ```
 
-> Skema tunggal `cloudflare_d1_schema.sql` sudah memuat tabel `users`, `plans`, `invoices/invoice_items`, `kwitansis/kwitansi_items`, `surat_jalans/surat_jalan_items`, `billing_config` (tarif per-dokumen + QRIS statis), dan `document_payments` (pencocokan nominal via suffix 2 digit), beserta baris seed `is_superadmin = 1` untuk email superadmin. Semua statement idempotent (`IF NOT EXISTS` / `OR IGNORE`), sehingga **upgrade cukup dengan menjalankan ulang file yang sama** (`--remote` untuk produksi). File `migrasi1`/`migrasi1.sql` lama sudah dihapus — tidak perlu dijalankan. Setelah skema diterapkan, unggah gambar QRIS statis Anda lewat kartu **Tarif & QRIS** di halaman superadmin.
+> ⚠️ **Windows:** `--local` sering gagal dengan `X [ERROR] write EOF` (workerd butuh VC++ redistributable — cloudflare/workers-sdk#9900). Untuk uji luring jalankan `node scripts/local-preview-server.mjs` yang menerapkan skema yang sama lewat `node:sqlite`, jadi tidak perlu `--local` sama sekali.
+
+> Skema tunggal `cloudflare_d1_schema.sql` sudah memuat tabel `users`, `plans`, `invoices/invoice_items`, `kwitansis/kwitansi_items`, `surat_jalans/surat_jalan_items`, `billing_config` (tarif per-dokumen + QRIS statis), dan `document_payments` (pencocokan nominal via suffix 2 digit), beserta baris seed `is_superadmin = 1` untuk email superadmin. Semua statement idempotent (`IF NOT EXISTS` / `OR IGNORE`) sehingga aman dijalankan berulang **untuk membuat database baru dari nol** (`--remote` untuk produksi) — tetapi lihat catatan ALTER di bawah untuk database yang sudah berisi tabel lama. File `migrasi1`/`migrasi1.sql` lama sudah dihapus — tidak perlu dijalankan. Setelah skema diterapkan, unggah gambar QRIS statis Anda lewat kartu **Tarif & QRIS** di halaman superadmin.
 
 Verifikasi hasil migrasi (kolom & foreign key benar):
 
 ```bash
-npx wrangler d1 execute invoicecraft_db --local --command "PRAGMA foreign_key_check;"
+npx wrangler d1 execute invoicemega_db --remote --command "PRAGMA foreign_key_check;"
+npx wrangler d1 execute invoicemega_db --remote --json --command "SELECT email, is_superadmin, is_active, plan FROM users WHERE email='megakomindo@gmail.com'"
 ```
+
+> ⚠️ **Penting saat menambah kolom baru:** statement `CREATE TABLE IF NOT EXISTS` **tidak mengubah tabel yang sudah ada** — tabel lama tetap kehilangan kolom baru dan Functions akan error `no such column`. Kalau skema bertambah, buat database baru lalu terapkan file ini, atau jalankan `ALTER TABLE ... ADD COLUMN` secara manual. (2026-10-22: produksi pindah dari `invoicecraft_db` ber-skema lama ke `invoicemega_db`; cadangan lama di `backups/`, tidak di-commit.)
 
 ---
 
@@ -47,7 +50,7 @@ pages_build_output_dir = "."
 
 [[d1_databases]]
 binding = "DB"
-database_name = "invoicecraft_db"
+database_name = "invoicemega_db"
 database_id = "<database_id_anda>"
 
 [vars]

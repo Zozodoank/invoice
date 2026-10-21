@@ -3,11 +3,16 @@
 -- ==============================================================================
 -- Cara Menjalankan di Cloudflare Workers / Pages D1:
 -- 1. Buat database D1:
---    npx wrangler d1 create invoicecraft_db
+--    npx wrangler d1 create invoicemega_db
 --
--- 2. Jalankan skema ini ke database lokal/remote:
---    Local:  npx wrangler d1 execute invoicecraft_db --local --file=./cloudflare_d1_schema.sql
---    Remote: npx wrangler d1 execute invoicecraft_db --remote --file=./cloudflare_d1_schema.sql
+-- 2. Jalankan skema ini ke database remote (produksi):
+--    npx wrangler d1 execute invoicemega_db --remote --file=./cloudflare_d1_schema.sql
+--    (hindari --local di Windows: workerd gagal spawn dengan "write EOF";
+--     pakai `node scripts/local-preview-server.mjs` yang menerapkan file ini)
+--
+-- PENTING: semua CREATE memakai IF NOT EXISTS, jadi file ini MENGISI database baru.
+-- Untuk database yang sudah punya tabel versi lama, kolom baru TIDAK akan bertambah
+-- (error "no such column") - buat database baru atau jalankan ALTER TABLE sendiri.
 -- ==============================================================================
 
 -- 1. TABEL PENGGUNA (USERS & OAUTH)

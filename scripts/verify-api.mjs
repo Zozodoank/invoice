@@ -7,20 +7,32 @@
 import { signToken } from '../functions/_shared/util.js';
 import { selectEffectivePrice, jakartaDate, secureCompare } from '../functions/_shared/billing.js';
 import { DatabaseSync } from 'node:sqlite';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const PORT = Number(process.argv[2] || 8788);
 const BASE = `http://localhost:${PORT}`;
-const SECRET = 'local-dev-secret-please-replace-0123456789'; // .dev.vars SESSION_SECRET
-const PAY_SECRET = 'local-dev-payment-secret-change-me';     // .dev.vars PAYMENT_WEBHOOK_SECRET
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// Keys must match the running preview server, so read them from .dev.vars
+// (gitignored) instead of hardcoding; fall back to the documented dev placeholders.
+const devVars = Object.fromEntries(
+  (fs.existsSync(path.join(ROOT, '.dev.vars'))
+    ? fs.readFileSync(path.join(ROOT, '.dev.vars'), 'utf8').split(/\r?\n/)
+    : []
+  )
+    .map((line) => (line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/) || [])
+      .slice(1))
+    .filter((pair) => pair.length === 2)
+);
+const SECRET = devVars.SESSION_SECRET || 'local-dev-secret-please-replace-0123456789';
+const PAY_SECRET = devVars.PAYMENT_WEBHOOK_SECRET || 'local-dev-payment-secret-change-me';
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
   if (cond) { pass++; console.log(`PASS ${name}`); }
   else { fail++; console.log(`FAIL ${name} ${extra}`); }
 };
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sqlite = new DatabaseSync(path.join(ROOT, '.wrangler', 'state', 'preview.sqlite'));
 
 // clean state from previous runs (incl. legacy NULL-id rows from the old saveDoc bug)
