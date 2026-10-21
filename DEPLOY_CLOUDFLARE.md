@@ -70,10 +70,13 @@ TZ = "Asia/Jakarta"
 #   SUPERADMIN_EMAIL=megakomindo@gmail.com
 #   PAYMENT_WEBHOOK_SECRET=<acak, sama dengan yang dipakai di makro MacroDroid>
 
-# untuk produksi Pages:
-npx wrangler pages secret put SESSION_SECRET   --project-name=invoice-generator-pro
-npx wrangler pages secret put SUPERADMIN_EMAIL --project-name=invoice-generator-pro
-npx wrangler pages secret put PAYMENT_WEBHOOK_SECRET --project-name=invoice-generator-pro
+# untuk produksi Pages (nama proyek = "invoice", lihat wrangler.toml `name`):
+npx wrangler pages secret put SESSION_SECRET          --project-name=invoice
+npx wrangler pages secret put SUPERADMIN_EMAIL        --project-name=invoice
+npx wrangler pages secret put PAYMENT_WEBHOOK_SECRET  --project-name=invoice
+
+# daftar nama secret (nilai tidak pernah bisa dibaca ulang):
+npx wrangler pages secret list --project-name=invoice
 ```
 
 - `SESSION_SECRET` — kunci HMAC untuk menandatangani cookie sesi.
@@ -85,7 +88,7 @@ npx wrangler pages secret put PAYMENT_WEBHOOK_SECRET --project-name=invoice-gene
 ## 4️⃣ Jalankan Secara Lokal
 
 ```bash
-npx wrangler pages dev . --d1 DB
+npx wrangler pages dev . --d1 DB=invoicemega_db
 ```
 
 Buka `http://localhost:8788`. Coba alur: `auth.html` (login Google) → `/api/me` → buat dokumen (tersimpan ke D1) → `/api/entitlements` (watermark) → Portal Superadmin (`superadmin.html`, hanya muncul bila role server = superadmin).
@@ -96,36 +99,54 @@ Error itu datang dari runtime **workerd** bawaan wrangler (bug known: cloudflare
 
 ```bash
 node scripts/local-preview-server.mjs 8788   # serves app + API di http://localhost:8788
-node scripts/verify-api.mjs 8788             # 34 pengecekan auth/trial/watermark/admin/IDOR
+node scripts/verify-api.mjs 8788             # 88 assertion auth/trial/watermark/admin/IDOR
 node scripts/verify-units.mjs                # 13 pengecekan esc/safeColor/format/kalkulasi PPN
 ```
 
 > Preview server hanya untuk uji luring — deploy produksi tetap lewat `wrangler pages deploy` (Pages Functions + D1 asli).
+>
+> Berkas `.dev.vars` kini juga dibaca oleh `scripts/verify-api.mjs` dan
+> `scripts/generate-macro-md2.mjs` (parser bersama di `scripts/dotvars.mjs`), jadi
+> ketiga tool memakai kunci yang sama. Bila `.dev.vars` tidak terbaca, keduanya
+> mencetak peringatan `!!` dan jatuh ke placeholder publik — jangan diabaikan.
 
 ---
 
 ## 5️⃣ Deploy
 
-### Metode A — Wrangler CLI (disarankan, menyertakan Functions)
+### Metode A — Wrangler CLI (menyertakan Functions)
 ```bash
-npx wrangler pages deploy . --project-name=invoicemega
+npx wrangler pages deploy . --project-name=invoice
 ```
+> Direktori kerja ikut ter-upload apa adanya (`.gitignore` **tidak** dibaca). Berkas
+> dev yang mengandung secret (`.dev.vars`, `.env`, `dist/`, `backups/`, `.wrangler/`)
+> dilindungi oleh `.pageignore` di root repo — jangan hapus berkas itu, dan jangan
+> simpan artefak bera-secret di luar daftar tersebut.
 
 ### Metode B — Terhubung ke GitHub (Continuous Deployment)
 ```bash
 git init && git add . && git commit -m "InvoiceCraft: Cloudflare Pages + Functions + D1"
 git branch -M main
-git remote add origin https://github.com/USERNAME/invoice-generator-pro.git
+git remote add origin https://github.com/Zozodoank/invoice.git
 git push -u origin main
 ```
 Di Dashboard: **Workers & Pages → Create application → Pages → Connect to Git**.
 - *Framework preset*: **None**
 - *Build command*: (kosong)
 - *Build output directory*: `.`
-Setelah terhubung, tambahkan `GOOGLE_CLIENT_ID` (Environment variable) + `SESSION_SECRET`/`SUPERADMIN_EMAIL` (Secret) pada tab **Settings → Environment variables**.
+
+Setelah proyek terhubung, tambahkan **tiga hal berikut di dashboard** — `wrangler.toml`
+TIDAK dipakai untuk ini pada build Git, jadi ketinggalan satu saja membuat API error:
+1. **Settings → Environment variables** (Variable): `GOOGLE_CLIENT_ID`, `TZ = Asia/Jakarta`
+2. **Settings → Environment variables** (Secrets manager): `SESSION_SECRET`, `SUPERADMIN_EMAIL`, `PAYMENT_WEBHOOK_SECRET`
+3. **Settings → Functions → Add bindings → D1**: *binding name* **`DB`**, database **`invoicemega_db`**
+   (kalau yang terpasang `invoicecraft_db` ber-skema lama, semua query gagal `no such column`/`no such table`)
+
+> Jangan sampai tertukar dengan **Worker + Settings → Builds**: Worker tidak mengenal folder
+> `functions/` dan deploy-nya akan gagal dengan `Missing entry-point to Worker script`.
 
 ### Metode C — Direct Upload
-Folder proyek (termasuk `functions/`) bisa di-*drag & drop* lewat **Workers & Pages → Upload assets**. Pastikan binding D1 (`DB`) ditambahkan di **Settings → Functions → D1 database bindings**, dan secret ditambahkan di tab yang sama.
+Folder proyek (termasuk `functions/`) bisa di-*drag & drop* lewat **Workers & Pages → Upload assets**. Pastikan binding D1 (`DB`) ditambahkan di **Settings → Functions → D1 database bindings**, dan secret ditambahkan di tab yang sama. Folder yang diunggah harus hasil checkout Git (bukan working copy), agar `.dev.vars`/`backups/` tidak ikut naik; `.pageignore` menjadi penjaga kedua.
 
 ---
 
@@ -137,7 +158,10 @@ Buka proyek → tab **Custom domains** → **Set up a custom domain** → masukk
 
 ## ✅ Checklist Pasca-Deploy
 
+- [ ] **Binding D1 benar**: `GET /api/admin/billing` dengan sesi superadmin → `200` berisi `pricePromo`/`priceNormal`. Bila `500 no such table: billing_config`, binding masih menunjuk `invoicecraft_db`.
 - [ ] Login Google menghasilkan cookie sesi HttpOnly & `/api/me` mengembalikan identitas + `role`.
+- [ ] `GET /api/config` → `200` (bukti `GOOGLE_CLIENT_ID`/`TZ` terbaca), `GET /api/me` tanpa login → `401` (bukan `500`).
+- [ ] QRIS statis sudah diunggah (`/api/admin/billing` → `qrisImage` terisi), karena tanpa itu alur bayar per-dokumen tidak berjalan.
 - [ ] Non-superadmin **tidak** bisa membuka `superadmin.html` (dashboard tersembunyi; endpoint admin menolak 403).
 - [ ] Pendaftar baru melihat banner bonus 3 dokumen; dokumen ke-4 berwatermark.
 - [ ] Dokumen tersimpan/hilang sesuai `user_id` (uji: logout & login akun lain → daftar terpisah).

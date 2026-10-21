@@ -12,13 +12,25 @@ dengan pembayaran `pending`, dokumen itu otomatis **bebas watermark**.
 > versi, sehingga import bisa gagal. **Panduan manual di bawah adalah jalur
 > resmi**; gunakan .md2 hanya sebagai percobaan cepat.
 
+> 🔒 **Hasil generator memuat SECRET pembayaran.** Sejak Oktober 2026
+> `scripts/generate-macro-md2.mjs` mengisi header `X-Payment-Key` otomatis dari
+> `PAYMENT_WEBHOOK_SECRET` di `.dev.vars`, jadi `macrodroid-interactive-qris.md2`
+> / `.json` hasil itu **berisi kunci produksi** dan harus diperlakukan seperti
+> kartu kredit: jangan dikirim lewat chat/email, jangan diunggah ke repo, jangan
+> diletakkan di dalam `dist/` (root aset Pages ikut ter-upload). Keluaran
+> default kini `.wrangler/tmp/macro-out/` (di-`gitignore` + `.pageignore`).
+> Seseorang yang memegang kunci itu dapat memanggil `/api/payments/confirm` dan
+> membuat dokumen bebas watermark tanpa membayar — rotasi `PAYMENT_WEBHOOK_SECRET`
+> bila Anda curiga kunci itu tersebar.
+
 ---
 
 ## 0. Persiapan (sekali)
 
-1. Deploy Pages + secret: `npx wrangler pages secret put PAYMENT_WEBHOOK_SECRET`
+1. Deploy Pages + secret: `npx wrangler pages secret put PAYMENT_WEBHOOK_SECRET --project-name=invoice`
    (nilai = kunci acak yang juga Anda masukkan di makro ini; lihat DEPLOY_CLOUDFLARE.md §3).
-2. Ganti seluruh `<APP.pages.dev>` di bawah dengan URL produksi Anda.
+2. Ganti seluruh `<APP.pages.dev>` di bawah dengan URL produksi Anda
+   (proyek ini: `https://invoice-ywm.pages.dev` atau `https://invoiceku.biz.id`).
 3. Di HP: pasang **MacroDroid**, izinkan akses notifikasi (Settings → MacroDroid →
    Notification Access), matikan **battery optimization** untuk MacroDroid, dan
    aktifkan **auto-start / keep-alive** (agar makro tidak tertidur).
@@ -50,6 +62,8 @@ dengan pembayaran `pending`, dokumen itu otomatis **bebas watermark**.
    - URL: `https://<APP.pages.dev>/api/payments/confirm`
    - Body (Raw / application/json): `{"amount": %amt%}`
    - Header: `X-Payment-Key: <PAYMENT_WEBHOOK_SECRET>` dan `Content-Type: application/json`
+     (nilai ini **tidak bisa dibaca ulang** dari dashboard — salin dari `.dev.vars`
+     Anda, atau set nilai baru lalu pakai nilai yang sama di kedua tempat).
    - Simpan respons → `%httpResp%` (Store Response = Output Variable).
 4. **Dialog → Toast / Popup** (opsional, hanya bila perlu debug):
    tampilkan `%httpResp%` — respons `{"matched":true,...}` berarti pembayaran

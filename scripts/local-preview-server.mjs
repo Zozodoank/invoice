@@ -17,22 +17,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
+import { readDotVars } from './dotvars.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.argv[2] || 8788);
 
 // ---------- env (same values Pages injects) ----------
-function readDotVars(file) {
-  const out = {};
-  if (fs.existsSync(file)) {
-    for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
-      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-      if (m && !line.trim().startsWith('#')) out[m[1]] = m[2].replace(/^"|"$/g, '');
-    }
-  }
-  return out;
-}
-const devVars = readDotVars(path.join(ROOT, '.dev.vars'));
+// Parser sama dengan verify-api.mjs / generate-macro-md2.mjs (lihat dotvars.mjs).
+const devVars = readDotVars(ROOT);
 const toml = fs.readFileSync(path.join(ROOT, 'wrangler.toml'), 'utf8');
 const googleClientId = (toml.match(/^GOOGLE_CLIENT_ID\s*=\s*"([^"]+)"/m) || [])[1] || '';
 const tz = (toml.match(/^TZ\s*=\s*"([^"]+)"/m) || [])[1] || 'Asia/Jakarta';

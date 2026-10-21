@@ -10,19 +10,26 @@
 # Pages Functions API. See docs/architecture.md.
 # ==============================================================================
 
-# MUST match the Cloudflare Pages project name in the dashboard.
-name = "invoicemega"
+# MUST match the Cloudflare Pages project name in the dashboard
+# (project "invoice" -> https://invoice-ywm.pages.dev + invoiceku.biz.id).
+name = "invoice"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
-# Pages static output = project root.
+# Pages static output = project root. Because the whole repo is the asset root,
+# dev-only artifacts (`.dev.vars`, `.wrangler/`, `dist/`, `backups/`) are excluded
+# from upload by the .pageignore file next to this config.
 pages_build_output_dir = "."
 
 # ------------------------------------------------------------------------------
 # D1 binding (exposed to Functions as `env.DB`)
 # invoicemega_db = current production DB (clean schema from cloudflare_d1_schema.sql).
-# The legacy `invoicecraft_db` (ba60d73b-...) still holds the OLD schema and is kept
-# only as a rollback backup; SQL dump: backups/invoicecraft_db_backup_20261022.sql
+# The legacy `invoicecraft_db` (ba60d73b-...) still holds the OLD schema.
+# NOTE: for Git-integrated Pages the ACTIVE binding comes from the dashboard
+# (Settings -> Functions -> D1 database bindings), not from this file.
+# SQL dump of the old DB sits in backups/ which is GITIGNORED -> local file only,
+# not available in a clone. Rollback = re-point the dashboard binding back to
+# invoicecraft_db (its old columns will still break the code), NOT a dump restore.
 # ------------------------------------------------------------------------------
 [[d1_databases]]
 binding = "DB"

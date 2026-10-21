@@ -7,26 +7,26 @@
 import { signToken } from '../functions/_shared/util.js';
 import { selectEffectivePrice, jakartaDate, secureCompare } from '../functions/_shared/billing.js';
 import { DatabaseSync } from 'node:sqlite';
-import fs from 'node:fs';
 import path from 'node:path';
+import { readDotVars } from './dotvars.mjs';
 import { fileURLToPath } from 'node:url';
 
 const PORT = Number(process.argv[2] || 8788);
 const BASE = `http://localhost:${PORT}`;
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-// Keys must match the running preview server, so read them from .dev.vars
-// (gitignored) instead of hardcoding; fall back to the documented dev placeholders.
-const devVars = Object.fromEntries(
-  (fs.existsSync(path.join(ROOT, '.dev.vars'))
-    ? fs.readFileSync(path.join(ROOT, '.dev.vars'), 'utf8').split(/\r?\n/)
-    : []
-  )
-    .map((line) => (line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/) || [])
-      .slice(1))
-    .filter((pair) => pair.length === 2)
-);
+// Keys must match the running preview server, so they are read from .dev.vars
+// (gitignored) with the SAME parser the server uses. If a key is missing we say so
+// loudly instead of silently using the placeholder values that are published in
+// scripts/verify-api.mjs itself (a silent fallback here once hid schema drift).
+const devVars = readDotVars(ROOT);
 const SECRET = devVars.SESSION_SECRET || 'local-dev-secret-please-replace-0123456789';
 const PAY_SECRET = devVars.PAYMENT_WEBHOOK_SECRET || 'local-dev-payment-secret-change-me';
+if (!devVars.SESSION_SECRET || !devVars.PAYMENT_WEBHOOK_SECRET) {
+  console.warn('!! .dev.vars tidak memuat SESSION_SECRET/PAYMENT_WEBHOOK_SECRET -> pakai placeholder publik.');
+  console.warn('!! Pastikan server preview dijalankan dari folder repo yang sama dengan file .dev.vars.');
+} else {
+  console.log(`keys dari .dev.vars: SESSION_SECRET ${SECRET.length} char, PAYMENT_WEBHOOK_SECRET ${PAY_SECRET.length} char`);
+}
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
   if (cond) { pass++; console.log(`PASS ${name}`); }

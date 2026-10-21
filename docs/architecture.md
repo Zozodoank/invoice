@@ -79,7 +79,7 @@ Cloudflare D1 (SQLite)      — satu-satunya penyimpanan data nyata
 | **Volume m³** auto-calc (P×L×T/1000) | ❌ | ❌ | **Backlog** — header kolom terkait sudah dinamai ulang "Qty" agar tidak menyesatkan |
 | **Cascade alih-kepemilikan** dokumen | ❌ | ❌ | **Backlog** |
 | **QRIS EMVCo** dinamis (payload dibuat server) | ❌ | ❌ | **Backlog** — yang aktif kini **QRIS statis + suffix 2 digit** via MacroDroid (baris di bawah) |
-| **Tarif per-dokumen QRIS statis** (promo Rp 1.000 / normal Rp 2.000, masa promo diatur superadmin; konfirmasi via MacroDroid → watermark hilang per dokumen) | ✅ (`docs/macrodroid-interactive-qris.md`) | ✅ (`billing_config`, `document_payments`, `/api/admin/billing`, `/api/payments/*`) | Generator `dist/*.md2` best-effort (format proprietary) — panduan manual jalur resmi |
+| **Tarif per-dokumen QRIS statis** (promo Rp 1.000 / normal Rp 2.000, masa promo diatur superadmin; konfirmasi via MacroDroid → watermark hilang per dokumen) | ✅ (`docs/macrodroid-interactive-qris.md`) | ✅ (`billing_config`, `document_payments`, `/api/admin/billing`, `/api/payments/*`) | Generator `.wrangler/tmp/macro-out/*.md2` best-effort (format proprietary; hasil memuat secret, sengaja di luar root aset Pages) — panduan manual jalur resmi |
 | Impor backup localStorage lama → D1 sekali jalan | ❌ | ❌ | **Backlog** (`/api/import/local` — validasi per-record, merge, bukan overwrite buta) |
 
 > Fitur berstatus **Backlog** tidak aktif di UI dan tidak dijanjikan README. Kolom DB yang belum terpakai dibiarkan kosong (default aman), bukan dihapus, agar migrasi berikutnya tidak destruktif.
@@ -88,9 +88,17 @@ Cloudflare D1 (SQLite)      — satu-satunya penyimpanan data nyata
 
 | Nama | Bentuk | Lokasi |
 |---|---|---|
-| `DB` (binding D1 `invoicemega_db`) | Binding | `wrangler.toml` `[[d1_databases]]` |
-| `GOOGLE_CLIENT_ID`, `TZ` | Var publik | `wrangler.toml` `[vars]` |
-| `SESSION_SECRET`, `SUPERADMIN_EMAIL` | Secret | `wrangler pages secret put` (prod) / `.dev.vars` (lokal, gitignored) |
+| `DB` (binding D1 `invoicemega_db`) | Binding | Dashboard Pages: **Settings → Functions → D1** (build Git mengabaikan `[[d1_databases]]` di `wrangler.toml`; bagian itu hanya dokumentasi + dipakai `wrangler pages dev`) |
+| `GOOGLE_CLIENT_ID`, `TZ` | Var publik | `wrangler.toml` `[vars]` (dev) + dashboard Variables (produksi) |
+| `SESSION_SECRET`, `SUPERADMIN_EMAIL` | Secret | `wrangler pages secret put --project-name=invoice` (prod) / `.dev.vars` (lokal, gitignored) |
 | `PAYMENT_WEBHOOK_SECRET` | Secret | Kunci `X-Payment-Key` untuk `/api/payments/confirm` (makro MacroDroid); `wrangler pages secret put` / `.dev.vars` |
+
+`.dev.vars` dibaca oleh **tiga** tool lewat parser bersama `scripts/dotvars.mjs`:
+`local-preview-server.mjs` (menyalanya server), `verify-api.mjs` (membuat cookie
+superadmin untuk uji), dan `generate-macro-md2.mjs` (mengisi `X-Payment-Key`).
+File itu adalah satu-satunya tempat nilai secret bisa dilihat kembali, jadi jangan
+dihapus. Root aset Pages = seluruh repo (`pages_build_output_dir = "."`), sehingga
+berkas dev (`.dev.vars`, `dist/`, `backups/`, `.wrangler/`) dikecualikan dari upload
+oleh `.pageignore` di root repo.
 
 Skema: `cloudflare_d1_schema.sql` (diterapkan via `wrangler d1 execute`). File `supabase_schema.sql`/`migrasi1*` lama sudah dihapus dari repo.

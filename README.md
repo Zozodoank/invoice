@@ -6,7 +6,7 @@ Aplikasi web modern, responsif, dan lengkap untuk membuat, mengelola, mencetak, 
 
 ## 🚀 Cara Menjalankan
 - **Mode demo luring:** buka `index.html` di browser (klik ganda).
-- **Mode penuh (dengan API & auth):** `npx wrangler pages dev . --d1 DB` setelah membuat binding D1 + secret (`SESSION_SECRET`, `SUPERADMIN_EMAIL`). Detail di [`DEPLOY_CLOUDFLARE.md`](DEPLOY_CLOUDFLARE.md). Arsitektur & sumber kebenaran dijelaskan di [`docs/architecture.md`](docs/architecture.md).
+- **Mode penuh (dengan API & auth):** `npx wrangler pages dev . --d1 DB=invoicemega_db` setelah membuat binding D1 + secret di `.dev.vars` (`SESSION_SECRET`, `SUPERADMIN_EMAIL`, `PAYMENT_WEBHOOK_SECRET`). Di Windows, workerd sering gagal spawn (`write EOF`) — pakai `node scripts/local-preview-server.mjs 8788` lalu `node scripts/verify-api.mjs 8788`. Detail di [`DEPLOY_CLOUDFLARE.md`](DEPLOY_CLOUDFLARE.md). Arsitektur & sumber kebenaran dijelaskan di [`docs/architecture.md`](docs/architecture.md).
 
 ---
 

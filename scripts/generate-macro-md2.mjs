@@ -9,25 +9,31 @@
  * GAGAL diimpor. Jalur resmi tetap panduan manual:
  *   docs/macrodroid-interactive-qris.md
  *
- * Pakai:          node scripts/generate-macro-md2.mjs [https://app.pages.dev]
- * Hasil:          dist/macrodroid-interactive-qris.md2 (+ .json)
+ * Pakai:          node scripts/generate-macro-md2.mjs [https://app.pages.dev] [dirKeluar]
+ * Hasil:          .wrangler/tmp/macro-out/macrodroid-interactive-qris.md2 (+ .json)
+ *                 Sengaja TIDAK di dist/: berkas hasil memuat PAYMENT_WEBHOOK_SECRET,
+ *                 sedangkan dist/ berada di dalam root aset Pages (lihat .pageignore).
  */
-import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
+import { readDotVars } from './dotvars.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASE_URL = (process.argv[2] || 'https://YOUR-APP.pages.dev').replace(/\/+$/, '');
 
 // Bake the real X-Payment-Key from .dev.vars (gitignored) so the macro works without
-// manual placeholder editing. Output lands in dist/ (also gitignored) -> treat the
-// generated .md2/.json as SECRET files, never attach them to chat or commits.
-const PAYMENT_KEY =
-  ((existsSync(path.join(ROOT, '.dev.vars'))
-    ? readFileSync(path.join(ROOT, '.dev.vars'), 'utf8')
-    : ''
-  ).match(/^\s*PAYMENT_WEBHOOK_SECRET\s*=\s*(.*?)\s*$/m) || [])[1] || '<GANTI_DENGAN_SECRET>';
+// manual placeholder editing. The generated files therefore CONTAIN A SECRET: keep
+// them outside the Pages asset root (see OUT_DIR below) and never share them.
+const PAYMENT_KEY = readDotVars(ROOT).PAYMENT_WEBHOOK_SECRET || '<GANTI_DENGAN_SECRET>';
+const IS_LOCAL_TARGET = /localhost|127\.0\.0\.1/i.test(BASE_URL);
+if (PAYMENT_KEY === '<GANTI_DENGAN_SECRET>') {
+  console.warn('!! .dev.vars tidak memuat PAYMENT_WEBHOOK_SECRET -> makro memakai placeholder.');
+} else if (!IS_LOCAL_TARGET) {
+  console.warn(`!! Kunci diambil dari .dev.vars (LURING) padahal target = ${BASE_URL} (PRODUKSI).`);
+  console.warn('!! Samakan dengan PAYMENT_WEBHOOK_SECRET proyek Pages, jika tidak makro akan 401.');
+}
 
 // ---------------------------------------------------------------------------
 // Definisi makro (dinormalisasi; field mengikuti konvensi ekspor umum MacroDroid)
@@ -39,9 +45,8 @@ const macro = {
     'mengekstrak nominal (base + 2 digit unik), lalu mengonfirmasi ke ' +
     BASE_URL + '/api/payments/confirm dengan header X-Payment-Key. ' +
     (PAYMENT_KEY === '<GANTI_DENGAN_SECRET>'
-      ? 'GANTI <GANTI_DENGAN_SECRET> ' : 'Memuat secret dari .dev.vars. ') +
-    'dan pilih aplikasi notifikasi sumber. ' +
-    'Panduan resmi: docs/macrodroid-interactive-qris.md',
+      ? 'GANTI <GANTI_DENGAN_SECRET>, lalu ' : 'Secret dimuat dari .dev.vars; ') +
+    'pilih aplikasi notifikasi sumber. Panduan resmi: docs/macrodroid-interactive-qris.md',
   uid: 1700000000001,
   active: true,
   triggers: [
@@ -155,7 +160,15 @@ function buildZip(fileName, contentBuf) {
   return Buffer.concat([local, nameBuf, contentBuf, central, nameBuf, eocd]);
 }
 
-const outDir = path.join(ROOT, 'dist');
+// Output stays OUTSIDE the Pages asset root (pages_build_output_dir = "."), because these
+// files embed PAYMENT_WEBHOOK_SECRET. `.wrangler/` is gitignored AND listed in
+// .pageignore, so it can never be uploaded as a public asset by Direct Upload either.
+const DIST_DIR = path.join(ROOT, 'dist');
+const outDir = path.resolve(ROOT, process.argv[3] || path.join('.wrangler', 'tmp', 'macro-out'));
+if (outDir === DIST_DIR || outDir.startsWith(DIST_DIR + path.sep)) {
+  console.error('Ditolak: output di dalam dist/ akan ter-serve sebagai aset Pages publik.');
+  process.exit(1);
+}
 mkdirSync(outDir, { recursive: true });
 const content = Buffer.from(jsonText, 'utf8');
 const md2 = buildZip('macro.json', content);
@@ -170,4 +183,4 @@ console.log('  ' + jsonPath);
 console.log('\nINGAT: import .md2 bisa gagal (format proprietary).');
 console.log('Panduan manual resmi: docs/macrodroid-interactive-qris.md');
 console.log(`X-Payment-Key: ${PAYMENT_KEY === '<GANTI_DENGAN_SECRET>' ? 'PLACEHOLDER - isi PAYMENT_WEBHOOK_SECRET di .dev.vars' : 'diisi otomatis dari .dev.vars'} (server ${BASE_URL}).`);
-console.log('JANGAN bagikan file hasil ini - memuat secret pembayaran.');
+console.log('JANGAN bagikan file hasil ini - memuat secret pembayaran (.wrangler/ di-gitignore & .pageignore).');

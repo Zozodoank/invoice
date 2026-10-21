@@ -1,0 +1,17 @@
+# Cloudflare Pages — berkas yang TIDAK boleh menjadi aset publik.
+#
+# Build yang terhubung ke Git sebenarnya sudah aman: isi .gitignore tidak pernah
+# sampai ke checkout. Berkas ini melindungi jalur lain (Direct Upload di dashboard
+# dan `wrangler pages deploy .` dari folder kerja), yang mengunggah APA ADANYA dari
+# pages_build_output_dir = "." tanpa membaca .gitignore.
+#
+# Pola bergaya .gitignore, relatif terhadap direktori output (root repo).
+.dev.vars
+.env
+.env.local
+.wrangler
+dist
+backups
+node_modules
+*.log
+*_backup_*.sql
