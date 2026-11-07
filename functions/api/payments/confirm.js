@@ -10,28 +10,40 @@
 import { FIELDS } from '../../_shared/docstore.js';
 import { secureCompare, expireStalePayments } from '../../_shared/billing.js';
 import { json, unauthorized } from '../../_shared/util.js';
+import { parseAmountsFromBody } from '../../_shared/notif.js';
 
 export async function onRequestPost(context) {
   const secret = context.env.PAYMENT_WEBHOOK_SECRET || '';
   if (!secret) {
     return json({ error: 'Server belum dikonfigurasi (PAYMENT_WEBHOOK_SECRET).' }, 500);
   }
-  const key = context.request.headers.get('X-Payment-Key') || '';
-  if (!secureCompare(key, secret)) return unauthorized('Kunci pembayaran salah.');
-
   let body;
   try { body = await context.request.json(); } catch { return json({ error: 'Body tidak valid.' }, 400); }
-  const amount = Math.round(Number(body.amount));
-  if (!Number.isFinite(amount) || amount < 1 || amount > 10000000) {
+  body = body && typeof body === 'object' ? body : {};
+
+  // Kunci: header X-Payment-Key ATAU x-macrodroid-key (atau body.key, format makro MacroDroid).
+  const key = context.request.headers.get('X-Payment-Key')
+    || context.request.headers.get('x-macrodroid-key')
+    || (typeof body.key === 'string' ? body.key : '');
+  if (!secureCompare(key, secret)) return unauthorized('Kunci pembayaran salah.');
+
+  // Nominal: body.amount (eksplisit) dan/atau diekstrak dari body.notification_text.
+  const candidates = parseAmountsFromBody(body);
+  if (!candidates.length) {
     return json({ error: 'Nominal tidak valid.' }, 400);
   }
 
   // Pembayaran yang lewat masa berlaku (30 menit) tidak boleh lagi dicocokkan.
   await expireStalePayments(context.env.DB);
-  const payment = await context.env.DB
-    .prepare("SELECT * FROM document_payments WHERE total_amount = ? AND status = 'pending'")
-    .bind(amount)
-    .first();
+  let payment = null;
+  let amount = candidates[0];
+  for (const cand of candidates) {
+    payment = await context.env.DB
+      .prepare("SELECT * FROM document_payments WHERE total_amount = ? AND status = 'pending'")
+      .bind(cand)
+      .first();
+    if (payment) { amount = cand; break; }
+  }
   if (!payment) {
     return json({ matched: false }, 200, { 'Cache-Control': 'no-store' });
   }

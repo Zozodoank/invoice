@@ -21,6 +21,14 @@ dengan pembayaran `pending`, dokumen itu otomatis **bebas watermark**.
 > membuat dokumen bebas watermark tanpa membayar — rotasi `PAYMENT_WEBHOOK_SECRET`
 > bila Anda curiga kunci itu tersebar.
 
+> ✅ **Jalur tercepat (format asli `.macro`, siap import):**
+> `node scripts/generate-macrodroid-macro.mjs [https://invoiceku.biz.id]` →
+> `.wrangler/tmp/macro-out/qris_invoice_dinamis.macro`. Makro hanya mengirim
+> `{"key":..., "notification_text":"{not_title} {notification} {not_text_big}"}` (+ header
+> `x-macrodroid-key`); server mengekstrak nominal "Rp 1.037" sendiri dan mencocokkan ke
+> pembayaran `pending`. Kunci = `PAYMENT_WEBHOOK_SECRET` (`.dev.vars` & secret Cloudflare Pages).
+> Secret Pages baru berlaku setelah deployment berikutnya.
+
 ---
 
 ## 0. Persiapan (sekali)
