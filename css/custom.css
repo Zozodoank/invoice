@@ -65,6 +65,11 @@ body {
 
 /* Print Specific Rules */
 @media print {
+  /* Proteksi dokumen: hanya dapat dicetak jika diotorisasi lewat alur kredit (kredit per aksi) */
+  body:not(.printing-authorized) {
+    display: none !important;
+  }
+
   html, body {
     background: #ffffff !important;
     color: #000000 !important;

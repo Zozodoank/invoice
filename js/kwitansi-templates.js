@@ -220,13 +220,13 @@ const KwitansiTemplates = {
    * Watermark support
    */
   renderWatermark(kwitansi) {
-    // Server is the sole watermark authority (#20); the document cannot override it.
-    // Per-document relief is honoured ONLY when the server-saved row itself carries
-    // hasWatermark === false (e.g. paid via static QRIS) — local drafts never set it.
-    const userLevelWm = (typeof window.AuthManager !== 'undefined')
+    // Watermark dikendalikan oleh sesi login & saldo kredit cetak/unduh user:
+    // - Belum login -> tampil watermark
+    // - Sudah login & kredit > 0 -> bebas watermark
+    // - Sudah login & kredit habis (<= 0) -> tampil kembali watermark sampai deposit
+    const showWatermark = (typeof window.AuthManager !== 'undefined')
       ? window.AuthManager.shouldShowWatermark()
       : true;
-    const showWatermark = userLevelWm && kwitansi.hasWatermark !== false;
 
     if (!showWatermark) return '';
 

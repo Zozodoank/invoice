@@ -642,14 +642,15 @@ class InvoiceApp {
 
     // Mobile Bottom Sticky Action Bar
     document.getElementById('btn-mobile-save')?.addEventListener('click', () => this.saveCurrentInvoice());
-    document.getElementById('btn-mobile-print')?.addEventListener('click', () => ExportManager.printInvoice());
+    document.getElementById('btn-mobile-print')?.addEventListener('click', () => {
+      ExportManager.printInvoice({ type: 'invoice', docId: (this.invoice && this.invoice.id) || '' });
+    });
     document.getElementById('btn-mobile-whatsapp')?.addEventListener('click', () => {
       const totals = calculateInvoiceTotals(this.invoice);
       ExportManager.shareViaWhatsApp(this.invoice, totals);
     });
     document.getElementById('btn-mobile-pdf')?.addEventListener('click', () => {
-      this.showToast('Membuat file PDF...', 'info');
-      ExportManager.downloadPdf(this.invoice);
+      ExportManager.downloadPdf(this.invoice, 'invoice-paper-preview', { type: 'invoice', docId: (this.invoice && this.invoice.id) || '' });
     });
 
     // Window Resize Responsive Handler
@@ -658,10 +659,11 @@ class InvoiceApp {
     // Top Bar Actions
     document.getElementById('btn-new-invoice')?.addEventListener('click', () => this.createNewInvoice());
     document.getElementById('btn-save-invoice')?.addEventListener('click', () => this.saveCurrentInvoice());
-    document.getElementById('btn-print-invoice')?.addEventListener('click', () => ExportManager.printInvoice());
+    document.getElementById('btn-print-invoice')?.addEventListener('click', () => {
+      ExportManager.printInvoice({ type: 'invoice', docId: (this.invoice && this.invoice.id) || '' });
+    });
     document.getElementById('btn-download-pdf')?.addEventListener('click', () => {
-      this.showToast('Membuat file PDF...', 'info');
-      ExportManager.downloadPdf(this.invoice);
+      ExportManager.downloadPdf(this.invoice, 'invoice-paper-preview', { type: 'invoice', docId: (this.invoice && this.invoice.id) || '' });
     });
     document.getElementById('btn-share-whatsapp')?.addEventListener('click', () => {
       const totals = calculateInvoiceTotals(this.invoice);
@@ -864,6 +866,11 @@ class InvoiceApp {
         this.renderHistoryTable();
         this.updateStatsCards();
       }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
+
+    window.addEventListener('auth:credits', () => {
+      this.renderInvoice();
       if (typeof lucide !== 'undefined') lucide.createIcons();
     });
   }

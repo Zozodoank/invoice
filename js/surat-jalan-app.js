@@ -110,6 +110,12 @@ class SuratJalanApp {
       }
       this.renderSuratJalan();
     });
+
+    // Listen to credit changes (print/PDF deduction or QRIS deposit) to refresh watermark & sidebar button
+    window.addEventListener('auth:credits', () => {
+      this.renderSuratJalan();
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
   }
 
   initTheme() {
@@ -572,7 +578,7 @@ class SuratJalanApp {
     document.getElementById('btn-theme-toggle')?.addEventListener('click', () => this.toggleTheme());
 
     // Export Actions
-    document.getElementById('btn-print-surat-jalan')?.addEventListener('click', () => ExportManager.printInvoice());
+    document.getElementById('btn-print-surat-jalan')?.addEventListener('click', () => ExportManager.printInvoice({ type: 'surat-jalan', docId: (this.suratJalan && this.suratJalan.id) || '' }));
     document.getElementById('btn-share-whatsapp')?.addEventListener('click', () => this.shareViaWhatsApp());
     document.getElementById('btn-download-pdf')?.addEventListener('click', () => this.downloadPdf());
 
@@ -589,7 +595,7 @@ class SuratJalanApp {
 
     // Mobile Bottom Sticky Action Bar
     document.getElementById('btn-mobile-save')?.addEventListener('click', () => this.saveToHistory());
-    document.getElementById('btn-mobile-print')?.addEventListener('click', () => ExportManager.printInvoice());
+    document.getElementById('btn-mobile-print')?.addEventListener('click', () => ExportManager.printInvoice({ type: 'surat-jalan', docId: (this.suratJalan && this.suratJalan.id) || '' }));
     document.getElementById('btn-mobile-whatsapp')?.addEventListener('click', () => this.shareViaWhatsApp());
     document.getElementById('btn-mobile-pdf')?.addEventListener('click', () => this.downloadPdf());
 
@@ -941,6 +947,17 @@ class SuratJalanApp {
 
   /* ================= EXPORT & SHARE ================= */
   async downloadPdf() {
+    return ExportManager.executeWithCredit({
+      type: 'surat-jalan',
+      docId: (this.suratJalan && this.suratJalan.id) || '',
+      action: 'pdf',
+      execute: async () => {
+        await this._doDownloadPdf();
+      }
+    });
+  }
+
+  async _doDownloadPdf() {
     const element = document.getElementById('surat-jalan-paper-preview');
     if (!element) return;
 
@@ -996,8 +1013,7 @@ class SuratJalanApp {
   }
 
   shareViaWhatsApp() {
-    const userWm = typeof window.AuthManager !== 'undefined' ? window.AuthManager.shouldShowWatermark() : true;
-    const hasWatermark = userWm && this.suratJalan.hasWatermark !== false;
+    const hasWatermark = typeof window.AuthManager !== 'undefined' ? window.AuthManager.shouldShowWatermark() : true;
 
     let text = '';
     if (hasWatermark) {

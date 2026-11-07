@@ -16,6 +16,7 @@ export async function onRequestGet(context) {
     isPaid: ent.isPaid,
     hasWatermark: ent.hasWatermark,
     trial: ent.trial,
+    printCredits: ent.printCredits,
     expiresAt: ent.expiresAt
   }, 200, { 'Cache-Control': 'no-store' });
 }

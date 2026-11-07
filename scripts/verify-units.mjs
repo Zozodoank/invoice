@@ -54,5 +54,109 @@ ok('undefined-safe: tax disabled => only item discount + global discount + ship 
   Math.abs(t2.grandTotal - (45000 - 9000 + 5000)) < 0.51 && Math.abs(t2.balanceDue - (t2.grandTotal - 10000)) < 0.51, JSON.stringify(t2));
 ok('enableTax undefined means OFF', calc({ items: [{ name: 'A', quantity: 1, price: 100000 }], taxRate: 12 }).taxAmount === 0);
 
+// ---------- Dynamic QRIS (functions/_shared/qris-emv.js) + unique-code picker ----------
+{
+  const Q = await import('../functions/_shared/qris-emv.js');
+  const B = await import('../functions/_shared/billing.js');
+  ok('CRC16-CCITT-FALSE known vector "123456789" = 29B1', Q.crc16ccitt('123456789') === '29B1', Q.crc16ccitt('123456789'));
+  const mk = (extra = '') => {
+    const inner = Q.buildTLV('00', 'ID.CO.TEST.WWW') + Q.buildTLV('01', '936000000000000001');
+    const body = '000201' + '010211' + Q.buildTLV('26', inner) + '52045999' + '5303360' + extra + '5802ID'
+      + Q.buildTLV('59', 'TOKO 010211 TEST') + Q.buildTLV('60', 'JAKARTA') + '6304';
+    return body + Q.crc16ccitt(body);
+  };
+  const S = mk();
+  ok('static fixture validates', Q.validateStaticQris(S).ok === true && Q.validateStaticQris(S).poi === '11');
+  const D = Q.buildDynamicQris(S, 1037);
+  const tags = Object.fromEntries(Q.parseTLV(D).map(t => [t.tag, t.value]));
+  ok('dynamic: tag01=12 and tag54=1037', tags['01'] === '12' && tags['54'] === '1037');
+  ok('dynamic: merchant name containing "010211" is NOT corrupted (TLV-safe, no string.replace)', tags['59'] === 'TOKO 010211 TEST');
+  ok('dynamic: CRC recomputed and valid', D.slice(-4) === Q.crc16ccitt(D.slice(0, -4)));
+  ok('dynamic: tag54 sits right before country tag 58', D.includes('54041037' + '5802ID'));
+  ok('dynamic: re-converting an already-dynamic payload replaces the amount', (() => {
+    const t = Object.fromEntries(Q.parseTLV(Q.buildDynamicQris(D, 1111)).map(x => [x.tag, x.value]));
+    return t['54'] === '1111' && Q.parseTLV(Q.buildDynamicQris(D, 1111)).filter(x => x.tag === '54').length === 1;
+  })());
+  ok('CRC tampering is detected', Q.validateStaticQris(S.slice(0, -4) + '0000').ok === false);
+  for (const bad of [0, -5, 1.5, '12a', '0123', NaN, Infinity]) {
+    let threw = false; try { Q.buildDynamicQris(S, bad); } catch (e) { threw = e instanceof Q.QrisError; }
+    ok(`buildDynamicQris rejects amount ${String(bad)}`, threw);
+  }
+  ok('buildDynamicQris rejects garbage payload', (() => { try { Q.buildDynamicQris('abc', 1000); return false; } catch (e) { return e instanceof Q.QrisError; } })());
+
+  // unique code picker: 2 digits first, 3 digits when the 2-digit range is full
+  const taken = new Set();
+  const first = B.pickSuffix(taken, 1000, () => 0);
+  ok('pickSuffix prefers 2 digits (10..99)', first >= 10 && first <= 99);
+  for (let s = 10; s <= 99; s++) taken.add(1000 + s);
+  const third = B.pickSuffix(taken, 1000, () => 0);
+  ok('pickSuffix falls back to 3 digits when 10..99 are busy', third >= 100 && third <= 999, String(third));
+  for (let s = 100; s <= 999; s++) taken.add(1000 + s);
+  ok('pickSuffix returns null when 2- and 3-digit codes are all busy', B.pickSuffix(taken, 1000) === null);
+  ok('pickSuffix skips a single free 2-digit slot correctly', (() => {
+    const t = new Set(); for (let s = 10; s <= 99; s++) if (s !== 57) t.add(1000 + s);
+    return B.pickSuffix(t, 1000) === 57;
+  })());
+  ok('paymentExpiresAt = created_at + 30 min', B.paymentExpiresAt({ created_at: '2026-11-06 02:00:00' }) === '2026-11-06T02:30:00.000Z');
+}
+
+// ── 4. Sidebar Watermark & AuthManager Credit State Transitions ───────
+console.log('\n[AuthManager] Watermark & Sidebar State Transitions');
+{
+  const fs = await import('node:fs');
+  const vm = await import('node:vm');
+  const authCode = fs.readFileSync(new URL('../js/auth.js', import.meta.url), 'utf8');
+
+  const mkEl = () => ({
+    classList: {
+      hidden: true,
+      add(c) { if (c === 'hidden') this.hidden = true; },
+      remove(c) { if (c === 'hidden') this.hidden = false; },
+      toggle(c, force) { if (c === 'hidden') this.hidden = force !== undefined ? Boolean(force) : !this.hidden; }
+    }
+  });
+  const elements = {
+    'btn-watermark-login': mkEl(),
+    'btn-watermark-pay': mkEl(),
+    'badge-watermark-clean': mkEl()
+  };
+  const sandbox = {
+    window: { dispatchEvent() {} },
+    localStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
+    document: {
+      readyState: 'complete',
+      getElementById(id) { return elements[id] || null; },
+      querySelectorAll() { return []; },
+      addEventListener() {}
+    },
+    CustomEvent: class { constructor(t, o) { this.type = t; this.detail = o && o.detail; } }
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(authCode, sandbox);
+  const AM = sandbox.window.AuthManager;
+
+  // 1) Not logged in -> watermark visible, login button shown
+  AM._user = null;
+  AM._updateCreditsUi();
+  ok('guest -> shouldShowWatermark() === true', AM.shouldShowWatermark() === true);
+  ok('guest -> #btn-watermark-login visible', elements['btn-watermark-login'].classList.hidden === false && elements['btn-watermark-pay'].classList.hidden === true && elements['badge-watermark-clean'].classList.hidden === true);
+
+  // 2) Logged in with 3 bonus credits -> watermark removed, clean badge shown
+  AM._user = { id: 'u1', email: 'u1@example.com', role: 'user', plan: 'free', printCredits: 3 };
+  AM._updateCreditsUi();
+  ok('logged in (credits=3) -> shouldShowWatermark() === false', AM.shouldShowWatermark() === false);
+  ok('logged in (credits=3) -> #badge-watermark-clean visible', elements['badge-watermark-clean'].classList.hidden === false && elements['btn-watermark-pay'].classList.hidden === true && elements['btn-watermark-login'].classList.hidden === true);
+
+  // 3) Credits exhausted (0) -> watermark reappears, button resets to unpaid (#btn-watermark-pay)
+  AM.setCredits(0);
+  ok('credits exhausted (0) -> shouldShowWatermark() === true', AM.shouldShowWatermark() === true);
+  ok('credits exhausted (0) -> #btn-watermark-pay visible (reset to unpaid)', elements['btn-watermark-pay'].classList.hidden === false && elements['badge-watermark-clean'].classList.hidden === true && elements['btn-watermark-login'].classList.hidden === true);
+
+  // 4) QRIS deposit (+1 credit) -> watermark removed again, clean badge restored
+  AM.setCredits(1);
+  ok('after QRIS deposit (credits=1) -> shouldShowWatermark() === false', AM.shouldShowWatermark() === false);
+  ok('after QRIS deposit (credits=1) -> #badge-watermark-clean restored', elements['badge-watermark-clean'].classList.hidden === false && elements['btn-watermark-pay'].classList.hidden === true);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

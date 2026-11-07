@@ -35,6 +35,28 @@ fs.mkdirSync(path.dirname(dbFile), { recursive: true });
 const sqlite = new DatabaseSync(dbFile);
 sqlite.exec(fs.readFileSync(path.join(ROOT, 'cloudflare_d1_schema.sql'), 'utf8'));
 
+// Upgrade a preview DB created before migrations/002_dynamic_qris.sql (idempotent: only runs
+// the parts still missing, mirroring what production applies once via `wrangler d1 execute`).
+{
+  const hasPayloadCol = sqlite.prepare('PRAGMA table_info(billing_config)').all().some((c) => c.name === 'qris_static_payload');
+  const dpSql = (sqlite.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='document_payments'").get() || {}).sql || '';
+  const needsRebuild = /total_amount\s+INTEGER\s+NOT\s+NULL\s+UNIQUE/i.test(dpSql) || !/'credit'/i.test(dpSql);
+  if (!hasPayloadCol || needsRebuild) {
+    let mig = fs.readFileSync(path.join(ROOT, 'migrations', '002_dynamic_qris.sql'), 'utf8');
+    if (hasPayloadCol) mig = mig.replace(/^ALTER TABLE billing_config ADD COLUMN qris_static_payload TEXT;/m, '');
+    if (!needsRebuild) mig = mig.slice(0, mig.indexOf('CREATE TABLE document_payments_new')) ;
+    sqlite.exec(mig);
+    console.log('[preview] applied migrations/002_dynamic_qris.sql');
+  }
+
+  const hasCreditsCol = sqlite.prepare('PRAGMA table_info(users)').all().some((c) => c.name === 'print_credits');
+  if (!hasCreditsCol) {
+    const mig3 = fs.readFileSync(path.join(ROOT, 'migrations', '003_action_credits.sql'), 'utf8');
+    sqlite.exec(mig3);
+    console.log('[preview] applied migrations/003_action_credits.sql');
+  }
+}
+
 const D1 = {
   prepare(sql) {
     const stmt = sqlite.prepare(sql);

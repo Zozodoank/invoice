@@ -37,6 +37,7 @@ class SuperadminApp {
     this.billing = null;            // tarif per-dokumen & QRIS statis (server-derived)
     this.qrisImageDataUrl = null;   // gambar hasil upload/re-encode; null = tidak berubah
     this.qrisImageRemoved = false;  // user menekan "Hapus gambar"
+    this.qrisPayloadRemoved = false; // user menekan "Hapus payload"
     this.payStats = null;
     this.currentUser = null;
     this.searchQuery = '';
@@ -604,6 +605,11 @@ class SuperadminApp {
       if (src) { img.src = src; img.classList.remove('hidden'); if (empty) empty.classList.add('hidden'); }
       else { img.removeAttribute('src'); img.classList.add('hidden'); if (empty) empty.classList.remove('hidden'); }
     }
+    const pi = b && b.qrisPayloadInfo;
+    if (this.qrisPayloadRemoved) setTxt('billing-qris-payload-info', 'Payload akan dihapus saat disimpan.');
+    else if (!pi) setTxt('billing-qris-payload-info', 'Belum diatur: pembayaran memakai gambar QRIS statis.');
+    else if (!pi.valid) setTxt('billing-qris-payload-info', 'Payload tersimpan TIDAK valid (' + (pi.error || '?') + '); pembayaran memakai gambar statis.');
+    else setTxt('billing-qris-payload-info', 'QRIS dinamis AKTIF: ' + (pi.merchantName || '-') + (pi.merchantCity ? ' (' + pi.merchantCity + ')' : '') + (pi.nmid ? ' - NMID ' + pi.nmid : '') + ' - ' + pi.masked);
     setTxt('billing-effective-badge', 'Rp ' + this._billingEffectiveNow(b || { pricePromo: 1000, priceNormal: 2000, promoActive: true }).toLocaleString('id-ID'));
     const s = this.payStats;
     setTxt('stat-paid-docs', `${s ? s.totalPaid : 0} lunas`);
@@ -679,10 +685,15 @@ class SuperadminApp {
     };
     if (this.qrisImageRemoved) payload.qrisImage = null;
     else if (this.qrisImageDataUrl) payload.qrisImage = this.qrisImageDataUrl;
+    const payloadText = get('input-billing-qris-payload').replace(/\s+/g, '');
+    if (payloadText) payload.qrisPayload = payloadText;
+    else if (this.qrisPayloadRemoved) payload.qrisPayload = null;
     try {
       this.billing = await window.Api.adminSaveBilling(payload);
       this.qrisImageDataUrl = null;
       this.qrisImageRemoved = false;
+      this.qrisPayloadRemoved = false;
+      const pt = document.getElementById('input-billing-qris-payload'); if (pt) pt.value = '';
       this.showToast('Tarif & QRIS berhasil disimpan.', 'success');
       await this.reload();
     } catch (e) { this.showToast(e.message || 'Gagal menyimpan tarif.', 'error'); }
@@ -817,6 +828,13 @@ class SuperadminApp {
       const fi = document.getElementById('input-billing-qris'); if (fi) fi.value = '';
       this.renderBillingForm();
     });
+
+    on('btn-clear-billing-payload', 'click', () => {
+      this.qrisPayloadRemoved = true;
+      const pt = document.getElementById('input-billing-qris-payload'); if (pt) pt.value = '';
+      this.renderBillingForm();
+    });
+    on('input-billing-qris-payload', 'input', () => { this.qrisPayloadRemoved = false; });
 
     // Delegated table-row + plan-card actions.
     const tbody = document.getElementById('users-table-body');

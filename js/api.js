@@ -53,6 +53,7 @@ const Api = {
   entitlements() { return this.get('/entitlements'); },
   // Server-authoritative watermark check before export (Plan Phase 3.4).
   verifyExport(body) { return this.post('/export/verify', body); },
+  consumeAction(body) { return this.post('/export/action', body); },
 
   // ---- superadmin ----
   adminListUsers(params = '') { return this.get('/admin/users' + params); },

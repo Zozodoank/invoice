@@ -42,6 +42,7 @@ const AuthManager = {
       try { localStorage.removeItem(AUTH_CACHE_KEY); } catch { /* ignore */ }
     }
     window.dispatchEvent(new CustomEvent('auth:change', { detail: this._user }));
+    this._updateCreditsUi();
     return this._user;
   },
 
@@ -49,7 +50,10 @@ const AuthManager = {
   async init() {
     try {
       const cached = localStorage.getItem(AUTH_CACHE_KEY);
-      if (cached) this._user = JSON.parse(cached);
+      if (cached) {
+        this._user = JSON.parse(cached);
+        this._updateCreditsUi();
+      }
     } catch { /* ignore */ }
     return await this.refresh();
   },
@@ -73,21 +77,75 @@ const AuthManager = {
   },
 
   /**
-   * Whether a brand-new document should show the "CONTOH" watermark.
-   * Default is the MOST RESTRICTIVE (true) whenever there is no valid server session.
-   * Per-document trial resolution happens on the server at save time.
+   * Whether a document should show the "CONTOH" watermark.
+   * - Not logged in -> true (must register/login first)
+   * - Superadmin -> false (unlimited)
+   * - Logged in -> false while printCredits > 0; true as soon as printCredits <= 0 (kredit habis -> watermark muncul kembali)
    */
   shouldShowWatermark() {
-    if (!this._user) return true;          // not logged in -> always watermark
+    if (!this._user) return true;
     if (this._user.isSuperadmin) return false;
-    if (this._user.isPaid) return false;
-    // Free user: server tells us global default; if missing, be safe.
-    return this._user.hasWatermark !== false;
+    return this.getCredits() <= 0;
   },
 
   /** Remaining clean (no-watermark) bonus documents per type, or null if unlimited. */
   getTrial() {
     return (this._user && this._user.trial) || null;
+  },
+
+  /** Get current print/download credits */
+  getCredits() {
+    if (!this._user) return 0;
+    if (this._user.isSuperadmin) return 999999;
+    return typeof this._user.printCredits === 'number' ? this._user.printCredits : 3;
+  },
+
+  /** Update credits locally and notify listeners */
+  setCredits(credits) {
+    if (!this._user) return;
+    this._user.printCredits = credits;
+    this._writeCache(this._user);
+    this._updateCreditsUi();
+    window.dispatchEvent(new CustomEvent('auth:credits', { detail: { credits } }));
+  },
+
+  _updateCreditsUi() {
+    const loggedIn = this.isLoggedIn();
+    const badges = document.querySelectorAll('.user-credits-badge');
+    const counts = document.querySelectorAll('.user-credits-count');
+    const cr = this.getCredits();
+    const isSuper = this.isSuperadmin();
+    const hasCredit = isSuper || cr > 0;
+    const txt = isSuper ? '∞' : String(cr);
+    counts.forEach(el => { el.textContent = txt; });
+    badges.forEach(b => {
+      if (loggedIn) {
+        b.classList.remove('hidden');
+        b.classList.add('inline-flex');
+      } else {
+        b.classList.add('hidden');
+        b.classList.remove('inline-flex');
+      }
+    });
+
+    // Update kontrol Hilangkan Watermark di sidebar panel kiri
+    const btnLogin = document.getElementById('btn-watermark-login');
+    const btnPay = document.getElementById('btn-watermark-pay');
+    const badgeClean = document.getElementById('badge-watermark-clean');
+    if (btnLogin) {
+      btnLogin.classList.toggle('hidden', loggedIn);
+      btnLogin.classList.toggle('flex', !loggedIn);
+    }
+    if (btnPay) {
+      const showPay = loggedIn && !hasCredit;
+      btnPay.classList.toggle('hidden', !showPay);
+      btnPay.classList.toggle('flex', showPay);
+    }
+    if (badgeClean) {
+      const showClean = loggedIn && hasCredit;
+      badgeClean.classList.toggle('hidden', !showClean);
+      badgeClean.classList.toggle('flex', showClean);
+    }
   },
 
   /**
@@ -108,6 +166,7 @@ const AuthManager = {
     }
     this._user = data;
     this._writeCache(data);
+    this._updateCreditsUi();
     window.dispatchEvent(new CustomEvent('auth:change', { detail: data }));
     return data;
   },
@@ -123,9 +182,17 @@ const AuthManager = {
     try { await this._fetchJSON('/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
     this._user = null;
     try { localStorage.removeItem(AUTH_CACHE_KEY); } catch { /* ignore */ }
+    this._updateCreditsUi();
     window.dispatchEvent(new CustomEvent('auth:change', { detail: null }));
   }
 };
 
 // Expose globally
 window.AuthManager = AuthManager;
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => AuthManager._updateCreditsUi());
+  } else {
+    AuthManager._updateCreditsUi();
+  }
+}

@@ -295,6 +295,13 @@
                 <button type="button" id="btn-clear-billing-qris" class="text-[11px] font-bold text-rose-600 hover:underline">Hapus gambar</button>
               </div>
             </div>
+            <div class="space-y-2">
+              <label for="input-billing-qris-payload" class="block font-bold text-slate-700 dark:text-slate-200">Payload QRIS Statis (teks) &mdash; untuk QRIS Dinamis</label>
+              <textarea id="input-billing-qris-payload" rows="3" autocomplete="off" spellcheck="false" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-mono text-[10px] break-all" placeholder="Tempel teks hasil scan QRIS statis, diawali 000201010211..."></textarea>
+              <p id="billing-qris-payload-info" class="text-[11px] text-slate-500 dark:text-slate-400"></p>
+              <p class="text-[10px] text-slate-400">Server mengubahnya jadi QRIS dinamis per transaksi (nominal terkunci + kode unik). Teks tidak pernah ditampilkan ulang; kosongkan lalu simpan untuk tetap memakai yang tersimpan.</p>
+              <button type="button" id="btn-clear-billing-payload" class="text-[11px] font-bold text-rose-600 hover:underline">Hapus payload (kembali ke gambar statis)</button>
+            </div>
             <div>
               <label for="input-billing-note" class="block font-bold text-slate-600 dark:text-slate-300 mb-1">Catatan instruksi untuk user</label>
               <textarea id="input-billing-note" rows="3" maxlength="500" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950" placeholder="Bayar nominal PERSIS seperti tertera via QRIS ke merchant ini."></textarea>

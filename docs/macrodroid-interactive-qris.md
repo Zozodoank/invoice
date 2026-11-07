@@ -1,8 +1,6 @@
 # 📱 Makro MacroDroid — Konfirmasi Pembayaran QRIS "Interactive QRIS"
 
-Makro ini menjembatani **QRIS statis** dengan backend InvoiceCraft. Karena QRIS
-statis tidak bisa membedakan transaksi, server menempelkan **2 digit unik** pada
-nominal (mis. tarif promo Rp 1.000 + kode `37` → user membayar **Rp 1.037**).
+Makro ini menjembatani **QRIS statis** dengan backend InvoiceCraft. Server mengubah payload QRIS statis menjadi **QRIS dinamis** (tag 01=`12`, nominal terkunci di tag 54, CRC dihitung ulang), dan menempelkan **kode unik 2 digit** (10–99; bila penuh otomatis **3 digit**, 100–999) pada nominal (mis. tarif promo Rp 1.000 + kode `37` → user membayar **Rp 1.037**). Kode berlaku **30 menit**; setelah itu pembayaran `expired` dan kodenya bisa dipakai lagi.
 Makro membaca notifikasi masuk dari aplikasi bank/e-wallet merchant, mengekstrak
 nominal, lalu melaporkan ke `POST /api/payments/confirm`. Jika nominal cocok
 dengan pembayaran `pending`, dokumen itu otomatis **bebas watermark**.
@@ -72,9 +70,11 @@ dengan pembayaran `pending`, dokumen itu otomatis **bebas watermark**.
 ## 3. Verifikasi end-to-end
 
 1. Buka `superadmin.html` → kartu **Tarif & QRIS**: aktifkan promo (Rp 1.000),
-   unggah gambar QRIS statis merchant, simpan.
+   tempel **teks payload QRIS statis** merchant (hasil scan QR, diawali `000201010211`),
+   simpan. Status `QRIS dinamis AKTIF` + nama merchant harus muncul. (Gambar statis tetap
+   bisa diunggah sebagai cadangan.)
 2. Sebagai user free (kredit trial habis): simpan invoice → ber-watermark →
-   klik **Bayar QRIS** di riwayat → muncul mis. `Rp 1.037`.
+   klik **Bayar QRIS** di riwayat → muncul QR dinamis + mis. `Rp 1.037` dan hitung mundur 30 menit.
 3. Bayar nominal **persis** itu dari aplikasi pembeli ke QRIS merchant Anda.
 4. Saat notifikasi dana masuk di HP → makro berjalan → dalam ≤ 16 detik modal
    user mendeteksi **lunas** dan preview bebas watermark.
@@ -88,4 +88,5 @@ dengan pembayaran `pending`, dokumen itu otomatis **bebas watermark**.
 | Makro tidak jalan saat layar mati | Doze/battery optimization | Matikan optimasi baterai + battery saver untuk MacroDroid |
 | `401` | `X-Payment-Key` ≠ secret server | Samakan nilai, jangan ada spasi |
 | Nominal > Rp 10 juta ditolak | Batas validasi endpoint | Wajar — tarif per dokumen kecil |
-| `Slot pembayaran penuh` (503) | Semua suffix 10–99 base sama sedang pending | Tunggu ≤24 jam (pending kedaluwarsa otomatis) atau selesaikan pembayaran yang menggantung |
+| `Slot pembayaran penuh` (503) | Semua kode 10–99 **dan** 100–999 sedang pending (jarang) | Tunggu ≤30 menit (pending kedaluwarsa otomatis) |
+| Nominal cocok tapi `matched:false` | Dibayar setelah lewat 30 menit | User membuka ulang pembayaran (nominal/kode baru) |

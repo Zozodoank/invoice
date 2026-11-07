@@ -119,6 +119,12 @@ class KwitansiApp {
       }
       this.renderKwitansi();
     });
+
+    // Listen to credit changes (print/PDF deduction or QRIS deposit) to refresh watermark & sidebar button
+    window.addEventListener('auth:credits', () => {
+      this.renderKwitansi();
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
   }
 
   initTheme() {
@@ -704,7 +710,7 @@ class KwitansiApp {
     document.getElementById('btn-theme-toggle')?.addEventListener('click', () => this.toggleTheme());
 
     // Export Actions
-    document.getElementById('btn-print-kwitansi')?.addEventListener('click', () => ExportManager.printInvoice());
+    document.getElementById('btn-print-kwitansi')?.addEventListener('click', () => ExportManager.printInvoice({ type: 'kwitansi', docId: (this.kwitansi && this.kwitansi.id) || '' }));
     document.getElementById('btn-share-whatsapp')?.addEventListener('click', () => this.shareViaWhatsApp());
     document.getElementById('btn-download-pdf')?.addEventListener('click', () => this.downloadPdf());
 
@@ -721,7 +727,7 @@ class KwitansiApp {
 
     // Mobile Bottom Sticky Action Bar
     document.getElementById('btn-mobile-save')?.addEventListener('click', () => this.saveToHistory());
-    document.getElementById('btn-mobile-print')?.addEventListener('click', () => ExportManager.printInvoice());
+    document.getElementById('btn-mobile-print')?.addEventListener('click', () => ExportManager.printInvoice({ type: 'kwitansi', docId: (this.kwitansi && this.kwitansi.id) || '' }));
     document.getElementById('btn-mobile-whatsapp')?.addEventListener('click', () => this.shareViaWhatsApp());
     document.getElementById('btn-mobile-pdf')?.addEventListener('click', () => this.downloadPdf());
 
@@ -1082,6 +1088,17 @@ class KwitansiApp {
   }
 
   async downloadPdf() {
+    return ExportManager.executeWithCredit({
+      type: 'kwitansi',
+      docId: (this.kwitansi && this.kwitansi.id) || '',
+      action: 'pdf',
+      execute: async () => {
+        await this._doDownloadPdf();
+      }
+    });
+  }
+
+  async _doDownloadPdf() {
     const element = document.getElementById('kwitansi-paper-preview');
     if (!element) return;
 
@@ -1145,8 +1162,7 @@ class KwitansiApp {
     const totals = this.calculateTotals();
     const curr = this.kwitansi.currency || 'IDR';
     const dec = this.kwitansi.useDecimals;
-    const userWm = typeof window.AuthManager !== 'undefined' ? window.AuthManager.shouldShowWatermark() : true;
-    const hasWatermark = userWm && this.kwitansi.hasWatermark !== false;
+    const hasWatermark = typeof window.AuthManager !== 'undefined' ? window.AuthManager.shouldShowWatermark() : true;
 
     let text = '';
     if (hasWatermark) {

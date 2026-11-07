@@ -43,8 +43,8 @@ export async function upsertUserFromGoogle(db, payload) {
   const id = newId('usr');
   await db
     .prepare(
-      `INSERT INTO users (id, email, name, avatar_url, oauth_provider, oauth_id, plan, subscription_status, is_active)
-       VALUES (?, ?, ?, ?, 'google', ?, 'free', 'active', 1)`
+      `INSERT INTO users (id, email, name, avatar_url, oauth_provider, oauth_id, plan, subscription_status, is_active, print_credits)
+       VALUES (?, ?, ?, ?, 'google', ?, 'free', 'active', 1, 3)`
     )
     .bind(id, email, name, avatar, payload.sub || null)
     .run();
@@ -65,6 +65,7 @@ export function publicUserWithEntitlement(user, superadminEmail) {
     isSuperadmin: ent.isSuperadmin,
     hasWatermark: ent.hasWatermark,
     trial: ent.trial,
+    printCredits: ent.printCredits,
     expiresAt: ent.expiresAt,
     isActive: Number(user.is_active) !== 0
   };

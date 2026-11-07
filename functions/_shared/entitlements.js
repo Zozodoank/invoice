@@ -49,6 +49,8 @@ export function computeEntitlement(user, superadminEmail) {
     trial[TRIAL_KEY[type]] = unlimited ? null : (Number(user[col]) === 0 ? 1 : 0);
   }
 
+  const printCredits = superAdmin ? 999999 : (user.print_credits != null ? Number(user.print_credits) : 3);
+
   return {
     plan: superAdmin ? 'enterprise' : (user.plan || 'free'),
     role: superAdmin ? 'superadmin' : 'user',
@@ -57,6 +59,7 @@ export function computeEntitlement(user, superadminEmail) {
     // Global default "will a brand-new doc be watermarked?" (per-type resolved on save).
     hasWatermark: !unlimited && Object.values(trial).every(v => v === 0),
     trial,
+    printCredits,
     expiresAt: user.subscription_expires_at || null
   };
 }

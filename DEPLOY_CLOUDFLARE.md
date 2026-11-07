@@ -161,7 +161,8 @@ Buka proyek → tab **Custom domains** → **Set up a custom domain** → masukk
 - [ ] **Binding D1 benar**: `GET /api/admin/billing` dengan sesi superadmin → `200` berisi `pricePromo`/`priceNormal`. Bila `500 no such table: billing_config`, binding masih menunjuk `invoicecraft_db`.
 - [ ] Login Google menghasilkan cookie sesi HttpOnly & `/api/me` mengembalikan identitas + `role`.
 - [ ] `GET /api/config` → `200` (bukti `GOOGLE_CLIENT_ID`/`TZ` terbaca), `GET /api/me` tanpa login → `401` (bukan `500`).
-- [ ] QRIS statis sudah diunggah (`/api/admin/billing` → `qrisImage` terisi), karena tanpa itu alur bayar per-dokumen tidak berjalan.
+- [ ] QRIS statis sudah diatur lewat kartu **Tarif & QRIS** (superadmin): tempel **teks payload** QRIS statis (`qrisPayload`, dibuat jadi QRIS dinamis per transaksi) dan/atau unggah gambarnya (`qrisImage`, cadangan bila payload kosong/tidak valid). Tanpa salah satunya alur bayar per-dokumen tidak berjalan.
+- [ ] **Migrasi DB lama** (satu kali, bila database sudah ada sebelum QRIS dinamis): `npx wrangler d1 execute invoicemega_db --remote --file=migrations/002_dynamic_qris.sql` — menambah kolom `billing_config.qris_static_payload` dan mengganti UNIQUE global `document_payments.total_amount` dengan indeks parsial (hanya antar `pending`). Database baru dari `cloudflare_d1_schema.sql` sudah memuatnya.
 - [ ] Non-superadmin **tidak** bisa membuka `superadmin.html` (dashboard tersembunyi; endpoint admin menolak 403).
 - [ ] Pendaftar baru melihat banner bonus 3 dokumen; dokumen ke-4 berwatermark.
 - [ ] Dokumen tersimpan/hilang sesuai `user_id` (uji: logout & login akun lain → daftar terpisah).

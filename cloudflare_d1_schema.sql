@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS users (
     effective_price INTEGER DEFAULT 0, -- harga kesepakatan terakhir (untuk MRR)
     billing_interval TEXT DEFAULT 'month', -- 'month' | 'year'
     notes TEXT,
-    -- Bonus pendaftar baru: 1 dokumen tanpa watermark per jenis (invoice/kwitansi/surat jalan)
+    -- Bonus pendaftar baru: 3 kredit cetak/unduh dokumen (Rp 1.000 per aksi berikutnya)
+    print_credits INTEGER DEFAULT 3,
     trial_invoice_used INTEGER DEFAULT 0,
     trial_kwitansi_used INTEGER DEFAULT 0,
     trial_surat_jalan_used INTEGER DEFAULT 0,
@@ -324,6 +325,7 @@ CREATE TABLE IF NOT EXISTS billing_config (
     promo_end DATE,              -- YYYY-MM-DD inklusif, NULL = tanpa batas
     qris_image TEXT,             -- data URL QRIS statis dari merchant
     qris_note TEXT,              -- instruksi singkat untuk user
+    qris_static_payload TEXT,    -- teks payload EMV QRIS statis (dikonversi server jadi QRIS dinamis per transaksi)
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -340,11 +342,11 @@ INSERT OR IGNORE INTO billing_config (id) VALUES ('default');
 CREATE TABLE IF NOT EXISTS document_payments (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    doc_type TEXT NOT NULL CHECK (doc_type IN ('invoice','kwitansi','surat-jalan')),
+    doc_type TEXT NOT NULL CHECK (doc_type IN ('invoice','kwitansi','surat-jalan','credit')),
     doc_id TEXT NOT NULL,
     base_amount INTEGER NOT NULL,        -- tarif efektif saat intent dibuat
-    suffix INTEGER NOT NULL,             -- 10..99 (2 digit unik)
-    total_amount INTEGER NOT NULL UNIQUE, -- base + suffix; kunci pencocokan notif
+    suffix INTEGER NOT NULL,             -- 10..99 (2 digit unik); 100..999 bila 2 digit penuh
+    total_amount INTEGER NOT NULL,       -- base + suffix; kunci pencocokan notif (unik hanya antar 'pending')
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','paid','expired')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     paid_at DATETIME
@@ -355,6 +357,9 @@ CREATE TABLE IF NOT EXISTS document_payments (
 -- ==============================================================================
 CREATE INDEX IF NOT EXISTS idx_doc_payments_doc ON document_payments(doc_type, doc_id);
 CREATE INDEX IF NOT EXISTS idx_doc_payments_status ON document_payments(status);
+-- Nominal hanya harus unik di antara pembayaran yang MASIH menunggu (30 menit); yang lunas/kedaluwarsa
+-- melepas kodenya agar bisa dipakai lagi.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_doc_payments_pending_amount ON document_payments(total_amount) WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_is_superadmin ON users(is_superadmin);
 CREATE INDEX IF NOT EXISTS idx_tenants_owner_id ON tenants(owner_id);

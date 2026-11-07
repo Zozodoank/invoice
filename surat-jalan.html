@@ -35,6 +35,8 @@
 
   <!-- QRCode.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- qrcode-generator: SVG QR yang tajam untuk QRIS dinamis (payload panjang) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 
   <!-- Canvas Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -132,6 +134,13 @@
         <span class="hidden 2xl:inline">Unduh </span><span>PDF</span>
       </button>
 
+      <!-- User Credits Badge (Kredit Per Aksi) -->
+      <div class="user-credits-badge hidden items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs font-bold text-amber-700 dark:text-amber-300 shrink-0" title="Sisa kredit cetak & unduh PDF">
+        <i data-lucide="coins" class="w-3.5 h-3.5 text-amber-500"></i>
+        <span>Kredit: <span class="user-credits-count">3</span></span>
+        <button type="button" class="btn-buy-credits ml-1 px-1.5 py-0.5 text-[10px] bg-amber-600 hover:bg-amber-700 text-white rounded-md transition" title="Beli Kredit via QRIS">+ Beli</button>
+      </div>
+
       <!-- User Account Badge -->
       <div id="auth-nav-container" class="flex items-center shrink-0">
         <a id="btn-header-login" href="auth.html" class="px-2 sm:px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-amber-600 dark:hover:text-amber-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-xl transition flex items-center gap-1 shrink-0" title="Masuk ke Akun">
@@ -218,6 +227,32 @@
               <button type="button" class="btn-color-preset w-6 h-6 rounded-full bg-emerald-600 hover:scale-110 transition" data-color="#059669"></button>
               <button type="button" class="btn-color-preset w-6 h-6 rounded-full bg-slate-900 hover:scale-110 transition" data-color="#0f172a"></button>
               <input type="color" id="input-accent-color" value="#f59e0b" class="w-6 h-6 rounded-lg cursor-pointer border-0 p-0 bg-transparent" title="Pilih Warna Kustom" />
+            </div>
+          </div>
+
+          <!-- Watermark Control (Sidebar Panel Kiri) -->
+          <div id="sidebar-watermark-box" class="pt-2">
+            <label class="text-[11px] font-semibold text-slate-600 dark:text-slate-300 block mb-1.5">Watermark Dokumen</label>
+            <a id="btn-watermark-login" href="auth.html" class="flex w-full items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-rose-200 dark:border-rose-800/70 bg-rose-50/80 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-xs font-bold text-rose-700 dark:text-rose-300 transition" title="Daftar atau Login untuk menghilangkan watermark dan mendapat 3 kredit gratis">
+              <span class="flex items-center gap-2">
+                <i data-lucide="shield-alert" class="w-4 h-4 text-rose-500 shrink-0"></i>
+                <span>Hilangkan Watermark (Daftar / Login)</span>
+              </span>
+              <span class="px-2 py-0.5 text-[10px] rounded-md bg-rose-600 text-white font-extrabold shrink-0">Masuk</span>
+            </a>
+            <button type="button" id="btn-watermark-pay" class="hidden w-full items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-xs font-bold text-amber-800 dark:text-amber-300 transition" title="Kredit habis — klik untuk deposit Rp 1.000 via QRIS agar watermark hilang">
+              <span class="flex items-center gap-2 text-left">
+                <i data-lucide="lock" class="w-4 h-4 text-amber-600 shrink-0"></i>
+                <span>Hilangkan Watermark (Kredit Habis &bull; Rp 1.000)</span>
+              </span>
+              <span class="px-2 py-0.5 text-[10px] rounded-md bg-amber-600 text-white font-extrabold shrink-0">Deposit QRIS</span>
+            </button>
+            <div id="badge-watermark-clean" class="hidden w-full items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800/70 bg-emerald-50/80 dark:bg-emerald-950/30 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+              <span class="flex items-center gap-2">
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500 shrink-0"></i>
+                <span>Watermark Hilang (Sisa Kredit: <span class="user-credits-count">3</span>)</span>
+              </span>
+              <button type="button" class="btn-buy-credits px-2 py-0.5 text-[10px] rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold shrink-0 transition">+ Deposit</button>
             </div>
           </div>
         </div>
@@ -733,12 +768,14 @@
         </button>
       </div>
       <div class="mx-auto w-56 h-56 rounded-xl border border-slate-200 dark:border-slate-700 bg-white flex items-center justify-center overflow-hidden">
+        <div id="qris-dynamic" class="hidden w-full h-full flex items-center justify-center p-2" aria-label="QRIS dinamis dengan nominal terkunci"></div>
         <img id="qris-image" alt="QRIS statis merchant" class="max-w-full max-h-full hidden">
         <span id="qris-image-empty" class="text-[11px] text-slate-400 px-3 text-center">Gambar QRIS belum diatur oleh pemilik platform.</span>
       </div>
       <div class="text-center space-y-1.5">
         <p id="qris-amount" class="font-mono-num font-extrabold text-2xl text-emerald-600 dark:text-emerald-400">Rp 0</p>
         <p id="qris-base-info" class="text-[11px] text-slate-400"></p>
+        <p id="qris-countdown" class="text-[11px] font-bold text-slate-500 dark:text-slate-400"></p>
         <button id="qris-copy-btn" type="button" class="px-3 py-1.5 text-xs font-bold bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/50">Salin Nominal</button>
       </div>
       <p id="qris-note" class="text-[11px] text-slate-500 dark:text-slate-400 text-center"></p>

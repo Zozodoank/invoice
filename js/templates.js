@@ -75,15 +75,13 @@ const InvoiceTemplates = {
    * Displayed when user is NOT logged in or has inactive subscription
    */
   renderWatermark(invoice) {
-    // Watermark authority lives on the SERVER (entitlement). The document object
-    // can never override it (#20). Default is the most restrictive.
-    // Per-document relief is honoured ONLY when the server-saved row itself
-    // carries hasWatermark === false (e.g. paid via static QRIS) — local drafts
-    // never have that flag, so they fall back to the per-user decision.
-    const userLevelWm = (typeof window.AuthManager !== 'undefined')
+    // Watermark dikendalikan oleh sesi login & saldo kredit cetak/unduh user:
+    // - Belum login -> tampil watermark
+    // - Sudah login & kredit > 0 -> bebas watermark
+    // - Sudah login & kredit habis (<= 0) -> tampil kembali watermark sampai deposit
+    const showWatermark = (typeof window.AuthManager !== 'undefined')
       ? window.AuthManager.shouldShowWatermark()
       : true;
-    const showWatermark = userLevelWm && invoice.hasWatermark !== false;
 
     if (!showWatermark) return '';
 

@@ -46,7 +46,7 @@ ok('billing_config table migrated', !!hasBilling, 'restart scripts/local-preview
 ok('document_payments table migrated', !!sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='document_payments'").get());
 if (hasBilling) {
   sqlite.prepare('DELETE FROM document_payments').run();
-  sqlite.prepare("UPDATE billing_config SET price_promo=1000, price_normal=2000, promo_active=1, promo_start=NULL, promo_end=NULL, qris_image=NULL, qris_note=NULL WHERE id='default'").run();
+  sqlite.prepare("UPDATE billing_config SET price_promo=1000, price_normal=2000, promo_active=1, promo_start=NULL, promo_end=NULL, qris_image=NULL, qris_note=NULL, qris_static_payload=NULL WHERE id='default'").run();
 }
 
 async function mkSession(email) {
@@ -324,19 +324,148 @@ ok('re-saved paid doc consumes no trial', sqlite.prepare('SELECT trial_invoice_u
 r = await raw('/api/payments/confirm', 'POST', { amount: intentNormal.payment.totalAmount }, { 'X-Payment-Key': PAY_SECRET });
 ok('double confirm same amount is idempotent (matched:false)', (await r.json()).matched === false);
 
-// regression: a paid total_amount must not be handed out again (column is UNIQUE)
+// A paid payment releases its code (uniqueness only applies among pending rows), so the next intent just has to be a fresh, unique pending
 r = await req('/api/invoices', 'POST', mkDoc('PAY-4'), buyTok);
 const payDoc3 = await r.json();
 r = await req('/api/payments/intent', 'POST', { type: 'invoice', id: payDoc3.id }, buyTok);
 const intent3 = await r.json();
-ok('new intent skips the PAID amount', intent3.payment.totalAmount !== intentNormal.payment.totalAmount && intent3.payment.status === 'pending', JSON.stringify({ new: intent3.payment.totalAmount, paid: intentNormal.payment.totalAmount }));
-ok('no two live payments share total_amount', sqlite.prepare("SELECT total_amount FROM document_payments WHERE status IN ('pending','paid') GROUP BY total_amount HAVING COUNT(*) > 1").all().length === 0);
+ok('new intent after a paid one is pending', intent3.payment.status === 'pending', JSON.stringify(intent3.payment));
+ok('no two PENDING payments share total_amount', sqlite.prepare("SELECT total_amount FROM document_payments WHERE status = 'pending' GROUP BY total_amount HAVING COUNT(*) > 1").all().length === 0);
 
 // 6e. admin payment stats
 r = await req('/api/admin/payments', 'GET', undefined, superTok);
 const stats = await r.json();
 ok('admin/payments 200 + stats', r.status === 200 && stats.totalPaid === 1 && stats.revenue === 2000 && stats.pendingCount === 2 && Array.isArray(stats.recent) && stats.recent.length === 3, JSON.stringify({ tp: stats.totalPaid, rv: stats.revenue, pc: stats.pendingCount, rc: (stats.recent || []).length }));
 r = await req('/api/admin/payments', 'GET', undefined, plainTok); ok('admin/payments blocked for non-super (403)', r.status === 403);
+
+// ---------- 6f. DYNAMIC QRIS + 3-digit fallback + 30-minute expiry ----------
+{
+  const { buildTLV, crc16ccitt, parseTLV, validateStaticQris } = await import('../functions/_shared/qris-emv.js');
+  const makeStatic = (extra = '') => {
+    const body = '000201' + '010211'
+      + buildTLV('26', buildTLV('00', 'ID.CO.TEST.WWW') + buildTLV('01', '936000000000000001'))
+      + '52045999' + '5303360' + extra + '5802ID' + buildTLV('59', 'TOKO TEST') + buildTLV('60', 'JAKARTA') + '6304';
+    return body + crc16ccitt(body);
+  };
+  const STATIC = makeStatic();
+  ok('test fixture static payload is valid', validateStaticQris(STATIC).ok === true);
+
+  // admin: payload validation
+  r = await req('/api/admin/billing', 'POST', { qrisPayload: 'bukan-qris' }, superTok);
+  ok('billing rejects garbage qris payload', r.status === 400);
+  r = await req('/api/admin/billing', 'POST', { qrisPayload: STATIC.slice(0, -4) + '0000' }, superTok);
+  ok('billing rejects payload with bad CRC', r.status === 400);
+  r = await req('/api/admin/billing', 'POST', { qrisPayload: makeStatic('54041000') }, superTok);
+  ok('billing rejects payload that already has an amount', r.status === 400);
+  r = await req('/api/admin/billing', 'POST', { qrisPayload: STATIC }, plainTok);
+  ok('billing payload blocked for non-superadmin', r.status === 403);
+  r = await req('/api/admin/billing', 'POST', { qrisPayload: STATIC }, superTok);
+  const adminCfg = await r.json();
+  ok('billing accepts valid static payload', r.status === 200 && adminCfg.qrisDynamic === true && adminCfg.qrisPayloadInfo.valid === true && adminCfg.qrisPayloadInfo.merchantName === 'TOKO TEST', JSON.stringify(adminCfg));
+  ok('billing never echoes the raw payload', !JSON.stringify(adminCfg).includes(STATIC));
+  r = await req('/api/admin/billing', 'GET', undefined, superTok);
+  ok('billing GET never echoes the raw payload', !(await r.text()).includes(STATIC));
+
+  // intent -> dynamic QRIS with the amount locked in tag 54
+  r = await req('/api/invoices', 'POST', mkDoc('DYN-1'), buyTok);
+  const dynDoc = await r.json();
+  r = await req('/api/payments/intent', 'POST', { type: 'invoice', id: dynDoc.id }, buyTok);
+  const dynIntent = await r.json();
+  const qp = dynIntent.billing && dynIntent.billing.qrisPayload;
+  ok('intent returns a dynamic QRIS payload', typeof qp === 'string' && qp.length > 40, JSON.stringify(dynIntent.billing));
+  if (qp) {
+    const tags = Object.fromEntries(parseTLV(qp).map(t => [t.tag, t.value]));
+    ok('dynamic QRIS: tag01=12 (dynamic)', tags['01'] === '12');
+    ok('dynamic QRIS: tag54 = totalAmount', tags['54'] === String(dynIntent.payment.totalAmount), `${tags['54']} vs ${dynIntent.payment.totalAmount}`);
+    ok('dynamic QRIS: CRC valid', qp.slice(-4) === crc16ccitt(qp.slice(0, -4)));
+    ok('dynamic QRIS keeps merchant data', tags['59'] === 'TOKO TEST' && tags['60'] === 'JAKARTA');
+  }
+  ok('intent exposes expiresAt ~30 min ahead', (() => {
+    const ms = Date.parse(dynIntent.payment.expiresAt) - Date.now();
+    return ms > 28 * 60 * 1000 && ms <= 30 * 60 * 1000 + 5000;
+  })(), String(dynIntent.payment.expiresAt));
+
+  // expiry: a pending older than 30 minutes is expired by status, ignored by confirm, and frees its code
+  sqlite.prepare("UPDATE document_payments SET created_at = datetime('now', '-31 minutes') WHERE id = ?").run(dynIntent.payment.id);
+  r = await raw('/api/payments/confirm', 'POST', { amount: dynIntent.payment.totalAmount }, { 'X-Payment-Key': PAY_SECRET });
+  ok('confirm ignores a pending older than 30 min', (await r.json()).matched === false);
+  r = await req('/api/payments/status', 'POST', { id: dynIntent.payment.id }, buyTok);
+  ok('status reports expired after 30 min', (await r.json()).status === 'expired');
+  r = await req('/api/payments/intent', 'POST', { type: 'invoice', id: dynDoc.id }, buyTok);
+  const dynIntent2 = await r.json();
+  ok('re-open after expiry creates a NEW pending payment', dynIntent2.payment.id !== dynIntent.payment.id && dynIntent2.payment.status === 'pending');
+  const releasedRow = sqlite.prepare('SELECT status FROM document_payments WHERE id = ?').get(dynIntent.payment.id);
+  ok('expired payment row stays expired (history kept)', releasedRow.status === 'expired');
+
+  // 3-digit fallback when every 2-digit code (10..99) is busy
+  sqlite.prepare("DELETE FROM document_payments WHERE doc_id LIKE 'fill_%'").run();
+  const base = dynIntent2.payment.baseAmount;
+  const heldNow = new Set(sqlite.prepare("SELECT total_amount FROM document_payments WHERE status = 'pending'").all().map(x => Number(x.total_amount)));
+  const ins = sqlite.prepare("INSERT INTO document_payments (id, user_id, doc_type, doc_id, base_amount, suffix, total_amount, status) VALUES (?, 'usr_verify_buyer', 'invoice', ?, ?, ?, ?, 'pending')");
+  for (let s = 10; s <= 99; s++) {
+    if (heldNow.has(base + s)) continue; // already held by an earlier pending payment
+    ins.run('pay_fill_' + s, 'fill_' + s, base, s, base + s);
+  }
+  r = await req('/api/invoices', 'POST', mkDoc('DYN-2'), buyTok);
+  const dynDoc2 = await r.json();
+  r = await req('/api/payments/intent', 'POST', { type: 'invoice', id: dynDoc2.id }, buyTok);
+  const full = await r.json();
+  ok('2-digit codes full -> falls back to 3-digit suffix', r.status === 200 && full.payment.suffix >= 100 && full.payment.suffix <= 999 && full.payment.totalAmount === base + full.payment.suffix, JSON.stringify(full));
+  if (full.billing && full.billing.qrisPayload) {
+    const t54 = parseTLV(full.billing.qrisPayload).find(t => t.tag === '54').value;
+    ok('3-digit payment is locked into the dynamic QRIS', t54 === String(full.payment.totalAmount));
+  }
+  r = await raw('/api/payments/confirm', 'POST', { amount: full.payment.totalAmount }, { 'X-Payment-Key': PAY_SECRET });
+  ok('confirm matches a 3-digit payment', (await r.json()).matched === true);
+  sqlite.prepare("DELETE FROM document_payments WHERE doc_id LIKE 'fill_%'").run();
+
+  // removing the payload falls back to the static image flow
+  r = await req('/api/admin/billing', 'POST', { qrisPayload: null }, superTok);
+  ok('billing removes payload', (await r.json()).qrisDynamic === false);
+  r = await req('/api/invoices', 'POST', mkDoc('DYN-3'), buyTok);
+  const dynDoc3 = await r.json();
+  r = await req('/api/payments/intent', 'POST', { type: 'invoice', id: dynDoc3.id }, buyTok);
+  ok('no payload configured -> qrisPayload null (static image fallback)', (await r.json()).billing.qrisPayload === null);
+
+  // ---------- 6g. Action Credits (Kredit Per Aksi: 3 bonus -> consume -> pay QRIS -> +1 credit) ----------
+  sqlite.prepare("DELETE FROM users WHERE id = 'usr_verify_credit'").run();
+  sqlite.prepare("INSERT INTO users (id, email, name, plan, subscription_status, is_active, print_credits) VALUES ('usr_verify_credit', 'credit@example.com', 'Credit Tester', 'free', 'active', 1, 3)").run();
+  const credTok = await mkSession('credit@example.com');
+
+  r = await req('/api/me', 'GET', undefined, credTok);
+  const meCred = await r.json();
+  ok('new user starts with 3 printCredits', meCred.printCredits === 3, JSON.stringify(meCred));
+
+  r = await req('/api/export/action', 'POST', { action: 'print', type: 'invoice' });
+  ok('export/action requires auth (401)', r.status === 401);
+
+  r = await req('/api/export/action', 'POST', { action: 'print', type: 'invoice' }, superTok);
+  const supAct = await r.json();
+  ok('superadmin export/action is unlimited', r.status === 200 && supAct.ok === true && supAct.isSuperadmin === true);
+
+  for (let expected = 2; expected >= 0; expected--) {
+    r = await req('/api/export/action', 'POST', { action: expected === 1 ? 'pdf' : 'print', type: 'invoice' }, credTok);
+    const act = await r.json();
+    ok(`consume bonus credit -> remaining ${expected}`, r.status === 200 && act.ok === true && act.remainingCredits === expected, JSON.stringify(act));
+  }
+
+  r = await req('/api/export/action', 'POST', { action: 'print', type: 'invoice' }, credTok);
+  const blocked = await r.json();
+  ok('4th action blocked when credits = 0 (402 insufficient_credits)', r.status === 402 && blocked.ok === false && blocked.error === 'insufficient_credits' && blocked.remainingCredits === 0, JSON.stringify(blocked));
+
+  // Buy 1 credit via QRIS intent (type: 'credit')
+  r = await req('/api/payments/intent', 'POST', { type: 'credit', id: 'credit' }, credTok);
+  const credIntent = await r.json();
+  ok('credit payment intent created (1000 promo + suffix)', r.status === 200 && credIntent.alreadyClean === false && credIntent.payment.baseAmount === 1000, JSON.stringify(credIntent));
+
+  r = await raw('/api/payments/confirm', 'POST', { amount: credIntent.payment.totalAmount }, { 'X-Payment-Key': PAY_SECRET });
+  const credConf = await r.json();
+  ok('confirm credit payment grants +1 credit', credConf.matched === true && credConf.credited === true, JSON.stringify(credConf));
+
+  r = await req('/api/export/action', 'POST', { action: 'pdf', type: 'invoice' }, credTok);
+  const afterPay = await r.json();
+  ok('action succeeds using purchased credit -> remaining 0', r.status === 200 && afterPay.ok === true && afterPay.remainingCredits === 0, JSON.stringify(afterPay));
+}
 
 // ---------- 7. schema smoke (Plan Phase 9.5) ----------
 const TABLES = ['users', 'plans', 'invoices', 'invoice_items', 'kwitansis', 'kwitansi_items', 'surat_jalans', 'surat_jalan_items', 'billing_config', 'document_payments'];
@@ -352,7 +481,7 @@ try {
     .run(intentPromo.payment.totalAmount);
 } catch { dupeRejected = true; }
 sqlite.prepare("DELETE FROM document_payments WHERE id = 'pay_dupe_probe'").run();
-ok('document_payments.total_amount enforced UNIQUE at DB level', dupeRejected);
+ok('pending total_amount enforced UNIQUE at DB level (partial index)', dupeRejected);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
