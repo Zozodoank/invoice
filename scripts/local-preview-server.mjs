@@ -28,6 +28,7 @@ const devVars = readDotVars(ROOT);
 const toml = fs.readFileSync(path.join(ROOT, 'wrangler.toml'), 'utf8');
 const googleClientId = (toml.match(/^GOOGLE_CLIENT_ID\s*=\s*"([^"]+)"/m) || [])[1] || '';
 const tz = (toml.match(/^TZ\s*=\s*"([^"]+)"/m) || [])[1] || 'Asia/Jakarta';
+const qrisStaticPayload = devVars.QRIS_STATIC_PAYLOAD || (toml.match(/^QRIS_STATIC_PAYLOAD\s*=\s*"([^"]+)"/m) || [])[1] || '';
 
 // ---------- D1 shim over node:sqlite ----------
 const dbFile = path.join(ROOT, '.wrangler', 'state', 'preview.sqlite');
@@ -102,6 +103,7 @@ const env = {
   // Shared secret the MacroDroid bridge sends as X-Payment-Key (dev value comes
   // from .dev.vars; in production it is a wrangler secret, never a var).
   PAYMENT_WEBHOOK_SECRET: devVars.PAYMENT_WEBHOOK_SECRET || '',
+  QRIS_STATIC_PAYLOAD: qrisStaticPayload,
   GOOGLE_CLIENT_ID: googleClientId,
   TZ: tz,
   CF_PAGES: '1'
@@ -158,8 +160,8 @@ const server = http.createServer(async (req, res) => {
       // middleware only populates context.data; ignore its passthrough response
       void mwRes;
       const apiRes = await handler(context);
-      const txt = await apiRes.text();
-      // Forward every response header (Cache-Control, etc.) so the harness behaves
+      const bodyBuf = Buffer.from(await apiRes.arrayBuffer());
+      // Forward every response header (Cache-Control, Content-Type SVG, etc.) so the harness behaves
       // like Pages Functions; set-cookie is handled separately below.
       const outHeaders = {};
       apiRes.headers.forEach((v, k) => { if (k.toLowerCase() !== 'set-cookie') outHeaders[k] = v; });
@@ -167,7 +169,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(apiRes.status, outHeaders);
       const cookies = apiRes.headers.getSetCookie ? apiRes.headers.getSetCookie() : [];
       if (cookies.length) res.setHeader('Set-Cookie', cookies);
-      return res.end(txt);
+      return res.end(bodyBuf);
     }
     // static assets
     let file = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname);

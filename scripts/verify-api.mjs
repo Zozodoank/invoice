@@ -465,6 +465,54 @@ r = await req('/api/admin/payments', 'GET', undefined, plainTok); ok('admin/paym
   r = await req('/api/export/action', 'POST', { action: 'pdf', type: 'invoice' }, credTok);
   const afterPay = await r.json();
   ok('action succeeds using purchased credit -> remaining 0', r.status === 200 && afterPay.ok === true && afterPay.remainingCredits === 0, JSON.stringify(afterPay));
+
+  // ---------- 6h. Server SVG QRIS Endpoint, Admin Preview & Multi-Credit Pack ----------
+  // Restore env/builtin static QRIS (Voiceover parity) via __RESET_ENV__
+  r = await req('/api/admin/billing', 'POST', { qrisPayload: '__RESET_ENV__' }, superTok);
+  const resetCfg = await r.json();
+  ok('reset payload restores default/env dynamic QRIS (MEGAKOMINDO)', r.status === 200 && resetCfg.qrisDynamic === true && resetCfg.qrisPayloadInfo.merchantName === 'MEGAKOMINDO', JSON.stringify(resetCfg));
+
+  r = await req('/api/admin/billing/preview?amount=1000', 'GET', undefined, plainTok);
+  ok('admin/billing/preview blocked for non-superadmin (403)', r.status === 403);
+  r = await req('/api/admin/billing/preview?amount=1000', 'GET', undefined, superTok);
+  const prevSvg = await r.text();
+  ok('admin/billing/preview returns SVG QRIS for Rp 1.000', r.status === 200 && /image\/svg\+xml/i.test(r.headers.get('Content-Type') || '') && prevSvg.startsWith('<svg '), prevSvg.slice(0, 80));
+
+  // Switch pack: create 1 credit then 5 credits -> old 1-credit pending is expired automatically
+  await req('/api/payments/intent', 'POST', { type: 'credit', id: 'credit', credits: 1 }, credTok);
+  r = await req('/api/payments/intent', 'POST', { type: 'credit', id: 'credit', credits: 5 }, credTok);
+  const pack5 = await r.json();
+  ok('5-credit pack intent: baseAmount 5000 + qrUrl present', r.status === 200 && pack5.payment.credits === 5 && pack5.payment.baseAmount === 5000 && typeof pack5.payment.qrUrl === 'string' && pack5.payment.qrUrl.includes('/api/payments/qr/'), JSON.stringify(pack5.payment));
+
+  const pendingForCred = sqlite.prepare("SELECT COUNT(*) c FROM document_payments WHERE user_id = 'usr_verify_credit' AND doc_type = 'credit' AND status = 'pending'").get().c;
+  ok('switching credit pack keeps only 1 active pending slot', pendingForCred === 1, `count=${pendingForCred}`);
+
+  // Fetch token-gated QR SVG image (no cookie needed when ?s=token matches!)
+  const qrRes = await fetch(BASE + pack5.payment.qrUrl);
+  const qrSvgText = await qrRes.text();
+  ok('GET /api/payments/qr/:id?s=token returns 200 SVG', qrRes.status === 200 && /image\/svg\+xml/i.test(qrRes.headers.get('Content-Type') || '') && qrSvgText.includes('<path d="M'), qrSvgText.slice(0, 80));
+  const badQrRes = await fetch(BASE + pack5.payment.qrUrl.split('?')[0] + '?s=wrong');
+  ok('GET /api/payments/qr/:id with wrong token rejected (403)', badQrRes.status === 403);
+
+  // Concurrent confirm race-condition guard + notification_text + x-macrodroid-key
+  const msg = `QRIS MEGAKOMINDO Dana masuk Rp ${pack5.payment.totalAmount.toLocaleString('id-ID')},00 Ref 99112233`;
+  const [c1, c2] = await Promise.all([
+    raw('/api/payments/confirm', 'POST', { notification_text: msg }, { 'x-macrodroid-key': PAY_SECRET }),
+    raw('/api/payments/confirm', 'POST', { notification_text: msg }, { 'x-macrodroid-key': PAY_SECRET })
+  ]);
+  const [j1, j2] = await Promise.all([c1.json(), c2.json()]);
+  const matchedCount = [j1, j2].filter(x => x.matched === true).length;
+  ok('concurrent MacroDroid webhooks credit exactly ONCE', matchedCount === 1 && (j1.creditsAdded === 5 || j2.creditsAdded === 5), JSON.stringify([j1, j2]));
+
+  r = await req('/api/payments/status', 'POST', { id: pack5.payment.id }, credTok);
+  const st5 = await r.json();
+  ok('status returns authoritative D1 printCredits = 5 after 5-credit topup', r.status === 200 && st5.status === 'paid' && st5.creditsGranted === 5 && st5.printCredits === 5, JSON.stringify(st5));
+
+  // Expired QR SVG returns 404 order_expired
+  const expIntent = await (await req('/api/payments/intent', 'POST', { type: 'credit', id: 'credit', credits: 1 }, credTok)).json();
+  sqlite.prepare("UPDATE document_payments SET created_at = datetime('now', '-31 minutes') WHERE id = ?").run(expIntent.payment.id);
+  const expQrRes = await fetch(BASE + expIntent.payment.qrUrl);
+  ok('expired QR SVG returns 404', expQrRes.status === 404);
 }
 
 // ---------- 7. schema smoke (Plan Phase 9.5) ----------

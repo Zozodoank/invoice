@@ -37,7 +37,8 @@ class SuperadminApp {
     this.billing = null;            // tarif per-dokumen & QRIS statis (server-derived)
     this.qrisImageDataUrl = null;   // gambar hasil upload/re-encode; null = tidak berubah
     this.qrisImageRemoved = false;  // user menekan "Hapus gambar"
-    this.qrisPayloadRemoved = false; // user menekan "Hapus payload"
+    this.qrisPayloadRemoved = false; // user menekan "Nonaktifkan Dinamis"
+    this.qrisPayloadResetEnv = false; // user menekan "Gunakan Bawaan Sistem"
     this.payStats = null;
     this.currentUser = null;
     this.searchQuery = '';
@@ -606,15 +607,77 @@ class SuperadminApp {
       else { img.removeAttribute('src'); img.classList.add('hidden'); if (empty) empty.classList.remove('hidden'); }
     }
     const pi = b && b.qrisPayloadInfo;
-    if (this.qrisPayloadRemoved) setTxt('billing-qris-payload-info', 'Payload akan dihapus saat disimpan.');
-    else if (!pi) setTxt('billing-qris-payload-info', 'Belum diatur: pembayaran memakai gambar QRIS statis.');
+    if (this.qrisPayloadRemoved) setTxt('billing-qris-payload-info', 'Payload akan dinonaktifkan saat disimpan.');
+    else if (this.qrisPayloadResetEnv) setTxt('billing-qris-payload-info', 'Akan dikembalikan ke payload QRIS bawaan sistem saat disimpan.');
+    else if (!pi) setTxt('billing-qris-payload-info', (b && b.qrisDisabledByAdmin) ? 'Dinonaktifkan oleh Admin: memakai gambar QRIS statis.' : 'Belum diatur: pembayaran memakai gambar QRIS statis.');
     else if (!pi.valid) setTxt('billing-qris-payload-info', 'Payload tersimpan TIDAK valid (' + (pi.error || '?') + '); pembayaran memakai gambar statis.');
-    else setTxt('billing-qris-payload-info', 'QRIS dinamis AKTIF: ' + (pi.merchantName || '-') + (pi.merchantCity ? ' (' + pi.merchantCity + ')' : '') + (pi.nmid ? ' - NMID ' + pi.nmid : '') + ' - ' + pi.masked);
+    else {
+      const srcLabel = pi.source === 'db' ? 'Dasbor Admin' : (pi.source === 'env' ? 'Konfigurasi Sistem' : 'Bawaan Merchant');
+      setTxt('billing-qris-payload-info', `QRIS dinamis AKTIF (${srcLabel}): ${pi.merchantName || '-'}${pi.merchantCity ? ' (' + pi.merchantCity + ')' : ''}${pi.nmid ? ' • NMID ' + pi.nmid : ''} • ${pi.masked}`);
+    }
+
+    // Pratinjau QRIS dinamis Rp 1.000 langsung di dasbor superadmin
+    this.loadDynamicQrisPreview(!(this.qrisPayloadRemoved) && !!(pi && pi.valid));
+
     setTxt('billing-effective-badge', 'Rp ' + this._billingEffectiveNow(b || { pricePromo: 1000, priceNormal: 2000, promoActive: true }).toLocaleString('id-ID'));
     const s = this.payStats;
     setTxt('stat-paid-docs', `${s ? s.totalPaid : 0} lunas`);
     setTxt('stat-payment-revenue', s ? this.formatCurrency(s.revenue) : 'Rp 0');
     setTxt('stat-payment-pending', `${s ? s.pendingCount : 0} menunggu`);
+    this.renderPaymentsLedger();
+  }
+
+  loadDynamicQrisPreview(enabled) {
+    const prevImg = document.getElementById('billing-dynamic-preview');
+    const prevEmpty = document.getElementById('billing-dynamic-preview-empty');
+    if (!prevImg) return;
+    if (!enabled) {
+      prevImg.removeAttribute('src');
+      prevImg.classList.add('hidden');
+      if (prevEmpty) prevEmpty.classList.remove('hidden');
+      return;
+    }
+    prevImg.onerror = () => {
+      prevImg.classList.add('hidden');
+      if (prevEmpty) prevEmpty.classList.remove('hidden');
+    };
+    prevImg.onload = () => {
+      prevImg.classList.remove('hidden');
+      if (prevEmpty) prevEmpty.classList.add('hidden');
+    };
+    prevImg.src = '/api/admin/billing/preview?amount=1000&t=' + Date.now();
+  }
+
+  renderPaymentsLedger() {
+    const tbody = document.getElementById('payments-ledger-body');
+    if (!tbody) return;
+    const esc = window.esc || (v => String(v == null ? '' : v));
+    const list = (this.payStats && this.payStats.recent) || [];
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-slate-400">Belum ada transaksi pembayaran QRIS.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(p => {
+      const st = String(p.status || 'pending');
+      const badge = st === 'paid'
+        ? '<span class="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-bold uppercase text-[10px]">Lunas</span>'
+        : (st === 'expired'
+          ? '<span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold uppercase text-[10px]">Kedaluwarsa</span>'
+          : '<span class="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 font-bold uppercase text-[10px]">Menunggu</span>');
+      const kind = p.doc_type === 'credit'
+        ? `${Number(p.credits_granted) || 1} Kredit Cetak/PDF`
+        : `${esc(p.doc_type)} • ${esc(String(p.doc_id || '').slice(0, 14))}`;
+      return `
+        <tr>
+          <td class="py-2 px-3 font-mono text-slate-500 whitespace-nowrap">${esc(p.created_at || '-')}</td>
+          <td class="py-2 px-3 font-mono">${esc(p.user_email || p.user_id || '-')}</td>
+          <td class="py-2 px-3">${kind}</td>
+          <td class="py-2 px-3 text-right font-mono">${esc(this.formatCurrency(p.base_amount))}</td>
+          <td class="py-2 px-3 text-right font-mono text-amber-600 dark:text-amber-400">+${esc(p.suffix)}</td>
+          <td class="py-2 px-3 text-right font-mono font-bold text-slate-800 dark:text-slate-100">${esc(this.formatCurrency(p.total_amount))}</td>
+          <td class="py-2 px-3">${badge}</td>
+        </tr>`;
+    }).join('');
   }
 
   // Badge-only refresh: reads the CURRENT (unsaved) input values so typing or
@@ -687,12 +750,14 @@ class SuperadminApp {
     else if (this.qrisImageDataUrl) payload.qrisImage = this.qrisImageDataUrl;
     const payloadText = get('input-billing-qris-payload').replace(/\s+/g, '');
     if (payloadText) payload.qrisPayload = payloadText;
+    else if (this.qrisPayloadResetEnv) payload.qrisPayload = '__RESET_ENV__';
     else if (this.qrisPayloadRemoved) payload.qrisPayload = null;
     try {
       this.billing = await window.Api.adminSaveBilling(payload);
       this.qrisImageDataUrl = null;
       this.qrisImageRemoved = false;
       this.qrisPayloadRemoved = false;
+      this.qrisPayloadResetEnv = false;
       const pt = document.getElementById('input-billing-qris-payload'); if (pt) pt.value = '';
       this.showToast('Tarif & QRIS berhasil disimpan.', 'success');
       await this.reload();
@@ -831,10 +896,28 @@ class SuperadminApp {
 
     on('btn-clear-billing-payload', 'click', () => {
       this.qrisPayloadRemoved = true;
+      this.qrisPayloadResetEnv = false;
       const pt = document.getElementById('input-billing-qris-payload'); if (pt) pt.value = '';
       this.renderBillingForm();
     });
-    on('input-billing-qris-payload', 'input', () => { this.qrisPayloadRemoved = false; });
+    on('btn-reset-billing-payload', 'click', () => {
+      this.qrisPayloadResetEnv = true;
+      this.qrisPayloadRemoved = false;
+      const pt = document.getElementById('input-billing-qris-payload'); if (pt) pt.value = '';
+      this.renderBillingForm();
+    });
+    on('btn-preview-dynamic-qris', 'click', () => {
+      this.loadDynamicQrisPreview(true);
+      this.showToast('Pratinjau QRIS Dinamis Rp 1.000 dimuat — scan di HP untuk verifikasi nominal terkunci.', 'info');
+    });
+    on('btn-refresh-payments', 'click', async () => {
+      try {
+        this.payStats = await window.Api.adminPayments();
+        this.renderBillingForm();
+        this.showToast('Riwayat pembayaran QRIS diperbarui.', 'success');
+      } catch (e) { this.showToast(e.message || 'Gagal memuat riwayat QRIS.', 'error'); }
+    });
+    on('input-billing-qris-payload', 'input', () => { this.qrisPayloadRemoved = false; this.qrisPayloadResetEnv = false; });
 
     // Delegated table-row + plan-card actions.
     const tbody = document.getElementById('users-table-body');

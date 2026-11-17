@@ -297,10 +297,22 @@
             </div>
             <div class="space-y-2">
               <label for="input-billing-qris-payload" class="block font-bold text-slate-700 dark:text-slate-200">Payload QRIS Statis (teks) &mdash; untuk QRIS Dinamis</label>
-              <textarea id="input-billing-qris-payload" rows="3" autocomplete="off" spellcheck="false" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-mono text-[10px] break-all" placeholder="Tempel teks hasil scan QRIS statis, diawali 000201010211..."></textarea>
-              <p id="billing-qris-payload-info" class="text-[11px] text-slate-500 dark:text-slate-400"></p>
-              <p class="text-[10px] text-slate-400">Server mengubahnya jadi QRIS dinamis per transaksi (nominal terkunci + kode unik). Teks tidak pernah ditampilkan ulang; kosongkan lalu simpan untuk tetap memakai yang tersimpan.</p>
-              <button type="button" id="btn-clear-billing-payload" class="text-[11px] font-bold text-rose-600 hover:underline">Hapus payload (kembali ke gambar statis)</button>
+              <textarea id="input-billing-qris-payload" rows="3" autocomplete="off" spellcheck="false" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-mono text-[10px] break-all" placeholder="Tempel teks hasil scan QRIS statis (diawali 000201010211...), kosongkan untuk tetap memakai yang aktif..."></textarea>
+              <div class="flex items-start gap-3 pt-1">
+                <div class="w-24 h-24 rounded-xl border border-slate-200 dark:border-slate-700 bg-white flex items-center justify-center overflow-hidden shrink-0">
+                  <img id="billing-dynamic-preview" alt="Pratinjau QRIS dinamis Rp 1.000" class="max-w-full max-h-full hidden">
+                  <span id="billing-dynamic-preview-empty" class="text-[9px] text-slate-400 px-1.5 text-center">Pratinjau QRIS dinamis</span>
+                </div>
+                <div class="space-y-1.5 min-w-0 flex-1">
+                  <p id="billing-qris-payload-info" class="text-[11px] font-semibold text-slate-600 dark:text-slate-300 break-words"></p>
+                  <p class="text-[10px] text-slate-400">Server mengubah payload statis jadi QRIS dinamis per transaksi (nominal terkunci + kode unik 2/3 digit).</p>
+                  <div class="flex flex-wrap items-center gap-2.5 pt-0.5">
+                    <button type="button" id="btn-preview-dynamic-qris" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-200 transition">Pratinjau Rp 1.000</button>
+                    <button type="button" id="btn-reset-billing-payload" class="text-[11px] font-bold text-emerald-600 hover:underline">Gunakan Bawaan Sistem</button>
+                    <button type="button" id="btn-clear-billing-payload" class="text-[11px] font-bold text-rose-600 hover:underline">Nonaktifkan Dinamis</button>
+                  </div>
+                </div>
+              </div>
             </div>
             <div>
               <label for="input-billing-note" class="block font-bold text-slate-600 dark:text-slate-300 mb-1">Catatan instruksi untuk user</label>
@@ -315,9 +327,40 @@
             • <span id="stat-payment-revenue" class="font-bold text-slate-600 dark:text-slate-300">Rp 0</span> pendapatan tarif (di luar kode unik)
             • <span id="stat-payment-pending" class="font-bold text-slate-600 dark:text-slate-300">0 menunggu</span>
           </p>
-          <button type="button" id="btn-save-billing" class="px-4 py-2 text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm flex items-center gap-2">
-            <i data-lucide="save" class="w-4 h-4"></i><span>Simpan Tarif &amp; QRIS</span>
-          </button>
+          <div class="flex items-center gap-2">
+            <button type="button" id="btn-refresh-payments" class="px-3 py-2 text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition flex items-center gap-1.5">
+              <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i><span>Segarkan Ledger</span>
+            </button>
+            <button type="button" id="btn-save-billing" class="px-4 py-2 text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm flex items-center gap-2">
+              <i data-lucide="save" class="w-4 h-4"></i><span>Simpan Tarif &amp; QRIS</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Riwayat Pembayaran QRIS (Audit Ledger) -->
+        <div class="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
+          <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+            <i data-lucide="receipt" class="w-3.5 h-3.5 text-emerald-500"></i>
+            <span>Riwayat Pembayaran QRIS Terbaru (Audit Ledger)</span>
+          </h3>
+          <div class="overflow-x-auto max-h-64 rounded-2xl border border-slate-200 dark:border-slate-800">
+            <table class="w-full text-left text-[11px]">
+              <thead class="sticky top-0 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase text-[10px]">
+                <tr>
+                  <th class="py-2 px-3">Waktu</th>
+                  <th class="py-2 px-3">Email User</th>
+                  <th class="py-2 px-3">Paket / Dokumen</th>
+                  <th class="py-2 px-3 text-right">Tarif Dasar</th>
+                  <th class="py-2 px-3 text-right">Unik</th>
+                  <th class="py-2 px-3 text-right">Total QRIS</th>
+                  <th class="py-2 px-3">Status</th>
+                </tr>
+              </thead>
+              <tbody id="payments-ledger-body" class="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+                <tr><td colspan="7" class="py-4 text-center text-slate-400">Memuat riwayat pembayaran…</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 

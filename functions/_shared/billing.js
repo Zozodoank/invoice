@@ -46,8 +46,29 @@ export function selectEffectivePrice(cfg, now = new Date()) {
   return Number(cfg.price_promo) || 0;
 }
 
+export const DEFAULT_STATIC_QRIS_PAYLOAD =
+  '00020101021126760024ID.CO.SPEEDCASH.MERCHANT01189360081530004731600215ID10260047316040303UKE51440014ID.CO.QRIS.WWW0215ID10265463961890303UKE5204597853033605802ID5911MEGAKOMINDO6009TANGERANG61051511762410509S399384830117202607110905035950703A0163041935';
+
+/**
+ * Tentukan payload QRIS statis efektif:
+ * - cfg.qris_static_payload === '' -> secara eksplisit dinonaktifkan oleh superadmin (pakai gambar statis).
+ * - cfg.qris_static_payload berisi string -> nilai dari dasbor D1 ('db').
+ * - cfg.qris_static_payload === null/undefined -> fallback ke env.QRIS_STATIC_PAYLOAD ('env') lalu bawaan merchant ('builtin').
+ */
+export function resolveEffectiveStaticPayload(cfg, env) {
+  const dbVal = cfg && cfg.qris_static_payload;
+  if (dbVal === '') return { payload: null, source: null, disabledByAdmin: true };
+  if (typeof dbVal === 'string' && dbVal.trim()) {
+    return { payload: dbVal.trim(), source: 'db', disabledByAdmin: false };
+  }
+  const envVal = env && typeof env.QRIS_STATIC_PAYLOAD === 'string' ? env.QRIS_STATIC_PAYLOAD.trim() : '';
+  if (envVal) return { payload: envVal, source: 'env', disabledByAdmin: false };
+  return { payload: DEFAULT_STATIC_QRIS_PAYLOAD, source: 'builtin', disabledByAdmin: false };
+}
+
 /** camelCase view of the config row (API contract). */
-export function billingToCamel(cfg) {
+export function billingToCamel(cfg, env) {
+  const eff = resolveEffectiveStaticPayload(cfg, env);
   return {
     pricePromo: Number(cfg.price_promo) || 0,
     priceNormal: Number(cfg.price_normal) || 0,
@@ -57,7 +78,8 @@ export function billingToCamel(cfg) {
     qrisImage: cfg.qris_image || null,
     qrisNote: cfg.qris_note || null,
     // Payload statis TIDAK pernah dikirim ke klien; hanya penanda bahwa QRIS dinamis aktif.
-    qrisDynamic: !!cfg.qris_static_payload,
+    qrisDynamic: !!eff.payload,
+    qrisPayloadSource: eff.source,
     effectivePrice: selectEffectivePrice(cfg)
   };
 }
@@ -109,26 +131,55 @@ export function pickSuffix(taken, base, rand = Math.random) {
   return null;
 }
 
+/** Jumlah kredit yang dibeli dari satu baris document_payments ('credit:5' -> 5; selain itu 1). */
+export function parseCreditCount(docType, docId) {
+  if (docType !== 'credit') return 1;
+  const m = /^credit:(\d+)$/.exec(String(docId || ''));
+  if (!m) return 1;
+  const n = parseInt(m[1], 10);
+  return Number.isFinite(n) && n >= 1 ? Math.min(100, n) : 1;
+}
+
 /**
- * Create (or reuse) a pending payment for one document.
+ * Create (or reuse) a pending payment for one document or credit pack.
  * Suffix = unique digits appended to the price so the amount in a bank/e-wallet
- * notification identifies which document was paid (e.g. 1000 + 37 -> pay Rp 1.037).
+ * notification identifies which transaction was paid (e.g. 1000 + 37 -> pay Rp 1.037).
  * The pending payment lives PAYMENT_TTL_MINUTES; the same total is rendered as a
- * dynamic QRIS (see qris-emv.js), so the payer cannot change the amount.
- * @returns {{ payment, config }} — throws { status: 503 } when every suffix is busy.
+ * dynamic QRIS (see qris-emv.js & qris-svg.js), so the payer cannot change the amount.
+ * @returns {{ payment, config, credits }} — throws { status: 503 } when every suffix is busy.
  */
-export async function createPaymentIntent(db, user, docType, docId) {
+export async function createPaymentIntent(db, user, docType, docId, options = {}) {
   // Reclaim suffix slots first so an abandoned pending is never "reused" past its TTL.
   await expireStalePayments(db);
 
-  const existing = await db
-    .prepare("SELECT * FROM document_payments WHERE doc_type = ? AND doc_id = ? AND user_id = ? AND status = 'pending'")
-    .bind(docType, docId, user.id)
-    .first();
-  if (existing) return { payment: existing, config: await getBillingConfig(db) };
+  const credits = docType === 'credit'
+    ? Math.min(100, Math.max(1, Math.round(Number(options.credits) || 1)))
+    : 1;
+  const effectiveDocId = docType === 'credit'
+    ? (credits > 1 ? `credit:${credits}` : 'credit')
+    : docId;
 
   const cfg = await getBillingConfig(db);
-  const base = selectEffectivePrice(cfg);
+  const unitPrice = selectEffectivePrice(cfg);
+  const base = unitPrice * credits;
+
+  // Reuse an active pending row ONLY when both doc_id and base_amount still match.
+  const existing = await db
+    .prepare("SELECT * FROM document_payments WHERE doc_type = ? AND doc_id = ? AND user_id = ? AND status = 'pending'")
+    .bind(docType, effectiveDocId, user.id)
+    .first();
+  if (existing && Number(existing.base_amount) === base) {
+    return { payment: existing, config: cfg, credits };
+  }
+
+  // When switching credit pack size or after price change, expire user's old pending credit intents
+  // so they don't keep unused suffix slots occupied.
+  if (docType === 'credit') {
+    await db
+      .prepare("UPDATE document_payments SET status = 'expired' WHERE doc_type = 'credit' AND user_id = ? AND status = 'pending'")
+      .bind(user.id)
+      .run();
+  }
 
   for (let attempt = 0; attempt < MAX_SUFFIX_RETRY; attempt++) {
     // total_amount only has to be unique among LIVE (pending) rows: it is the match key for
@@ -150,7 +201,7 @@ export async function createPaymentIntent(db, user, docType, docId) {
       await db
         .prepare(`INSERT INTO document_payments (id, user_id, doc_type, doc_id, base_amount, suffix, total_amount, status)
                   VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`)
-        .bind(id, user.id, docType, docId, base, suffix, base + suffix)
+        .bind(id, user.id, docType, effectiveDocId, base, suffix, base + suffix)
         .run();
     } catch (e) {
       // Another request grabbed the same code between SELECT and INSERT (partial UNIQUE index) - retry.
@@ -158,7 +209,7 @@ export async function createPaymentIntent(db, user, docType, docId) {
       continue;
     }
     const payment = await db.prepare('SELECT * FROM document_payments WHERE id = ?').bind(id).first();
-    return { payment, config: cfg };
+    return { payment, config: cfg, credits };
   }
   throw Object.assign(new Error('Slot pembayaran penuh, coba lagi beberapa saat.'), { status: 503 });
 }

@@ -98,6 +98,14 @@ export function forbidden(msg = 'Akses ditolak') {
   return json({ error: msg }, 403);
 }
 
+/** Sign a deterministic HMAC token for token-gated QR SVG URLs (`/api/payments/qr/:id?s=...`). */
+export async function signQrToken(paymentId, userId, secret) {
+  const msg = `qr:${String(paymentId)}:${String(userId)}`;
+  const key = String(secret || 'invoicecraft-qr-fallback');
+  const sig = await crypto.subtle.sign('HMAC', await hmacKey(key), enc.encode(msg));
+  return b64url(new Uint8Array(sig)).slice(0, 22);
+}
+
 /** Generate a reasonably unique id with a given prefix. */
 export function newId(prefix) {
   return `${prefix}_${Date.now().toString(36)}_${(crypto.getRandomValues(new Uint8Array(6))

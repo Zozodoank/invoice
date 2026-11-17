@@ -158,5 +158,31 @@ console.log('\n[AuthManager] Watermark & Sidebar State Transitions');
   ok('after QRIS deposit (credits=1) -> #badge-watermark-clean restored', elements['badge-watermark-clean'].classList.hidden === false && elements['btn-watermark-pay'].classList.hidden === true);
 }
 
+// ── 5. Server SVG QR Generator & Billing Resolution Helpers ──────────
+console.log('\n[qris-svg & billing] QR SVG + Static Payload Fallback + Pack Count');
+{
+  const { qrSvg } = await import('../functions/_shared/qris-svg.js');
+  const { resolveEffectiveStaticPayload, parseCreditCount, DEFAULT_STATIC_QRIS_PAYLOAD } = await import('../functions/_shared/billing.js');
+  const { buildDynamicQris } = await import('../functions/_shared/qris-emv.js');
+
+  const dyn = buildDynamicQris(DEFAULT_STATIC_QRIS_PAYLOAD, 1037);
+  const svg = qrSvg(dyn, { size: 320 });
+  ok('qrSvg produces valid SVG XML for 259-char dynamic QRIS', svg.startsWith('<svg ') && svg.includes('<path d="M') && svg.includes('</svg>'));
+  let emptyErr = false;
+  try { qrSvg(''); } catch (e) { emptyErr = e.code === 'empty_payload'; }
+  ok('qrSvg rejects empty payload', emptyErr);
+
+  ok('resolveEffectiveStaticPayload: db overrides env', resolveEffectiveStaticPayload({ qris_static_payload: 'DB_VAL' }, { QRIS_STATIC_PAYLOAD: 'ENV_VAL' }).source === 'db');
+  ok('resolveEffectiveStaticPayload: null falls back to env', resolveEffectiveStaticPayload({ qris_static_payload: null }, { QRIS_STATIC_PAYLOAD: 'ENV_VAL' }).source === 'env');
+  ok('resolveEffectiveStaticPayload: null + no env falls back to builtin', resolveEffectiveStaticPayload({ qris_static_payload: null }, {}).source === 'builtin');
+  const dis = resolveEffectiveStaticPayload({ qris_static_payload: '' }, { QRIS_STATIC_PAYLOAD: 'ENV_VAL' });
+  ok('resolveEffectiveStaticPayload: empty string sentinel disables dynamic QRIS', dis.payload === null && dis.disabledByAdmin === true);
+
+  ok('parseCreditCount: credit -> 1', parseCreditCount('credit', 'credit') === 1);
+  ok('parseCreditCount: credit:5 -> 5', parseCreditCount('credit', 'credit:5') === 5);
+  ok('parseCreditCount: credit:999 clamped to 100', parseCreditCount('credit', 'credit:999') === 100);
+  ok('parseCreditCount: invoice -> 1', parseCreditCount('invoice', 'credit:5') === 1);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

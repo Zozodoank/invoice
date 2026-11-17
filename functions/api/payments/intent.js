@@ -12,9 +12,9 @@
 import { requireAuth, badRequest } from '../../_shared/guards.js';
 import { FIELDS } from '../../_shared/docstore.js';
 import { computeEntitlement } from '../../_shared/entitlements.js';
-import { createPaymentIntent, isDocPaidClean, paymentExpiresAt } from '../../_shared/billing.js';
-import { buildDynamicQris } from '../../_shared/qris-emv.js';
-import { json } from '../../_shared/util.js';
+import { createPaymentIntent, isDocPaidClean, paymentExpiresAt, resolveEffectiveStaticPayload, selectEffectivePrice } from '../../_shared/billing.js';
+import { buildDynamicQris, validateStaticQris } from '../../_shared/qris-emv.js';
+import { json, signQrToken } from '../../_shared/util.js';
 
 export async function onRequestPost(context) {
   const auth = await requireAuth(context);
@@ -56,29 +56,45 @@ export async function onRequestPost(context) {
   }
 
   try {
-    const { payment, config } = await createPaymentIntent(context.env.DB, auth.user, type, id);
+    const creditsReq = type === 'credit' ? body.credits : 1;
+    const { payment, config, credits } = await createPaymentIntent(context.env.DB, auth.user, type, id, { credits: creditsReq });
+    const eff = resolveEffectiveStaticPayload(config, context.env);
     let qrisPayload = null;
-    if (config.qris_static_payload) {
+    let merchantName = null;
+    let merchantCity = null;
+    if (eff.payload) {
       try {
-        qrisPayload = buildDynamicQris(config.qris_static_payload, payment.total_amount);
+        qrisPayload = buildDynamicQris(eff.payload, payment.total_amount);
+        const info = validateStaticQris(eff.payload);
+        merchantName = info.merchantName || null;
+        merchantCity = info.merchantCity || null;
       } catch (e) {
         // Bad static payload must never block payment: fall back to the static image.
         console.error('Dynamic QRIS build failed:', e && e.message ? e.message : String(e));
       }
     }
+    const qrToken = qrisPayload ? await signQrToken(payment.id, auth.user.id, context.env.SESSION_SECRET) : null;
+    const qrUrl = qrToken ? `/api/payments/qr/${encodeURIComponent(payment.id)}?s=${encodeURIComponent(qrToken)}` : null;
+
     return json({
       alreadyClean: false,
       payment: {
         id: payment.id,
         docId: payment.doc_id,
+        credits,
         baseAmount: payment.base_amount,
         suffix: payment.suffix,
         totalAmount: payment.total_amount,
         status: payment.status,
-        expiresAt: paymentExpiresAt(payment)
+        expiresAt: paymentExpiresAt(payment),
+        qrUrl
       },
       billing: {
         qrisPayload,
+        qrUrl,
+        merchantName,
+        merchantCity,
+        unitPrice: selectEffectivePrice(config),
         qrisImage: config.qris_image || null,
         qrisNote: config.qris_note || null
       }

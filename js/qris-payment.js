@@ -1,13 +1,13 @@
 /**
- * js/qris-payment.js — shared "Bayar QRIS" controller for the three document pages.
+ * js/qris-payment.js — shared Dynamic QRIS controller for Faktur, Kwitansi & Surat Jalan.
  *
- * Server-authoritative by design: the server decides WHICH documents need
- * payment, the effective price (promo vs normal), the unique amount suffix (2 digits,
- * 3 when full) that makes a bank notification identifiable, and the DYNAMIC QRIS payload
- * (amount locked in the QR). This module only renders the answer (QR via QRCode.js),
- * shows a 30-minute countdown and polls payment status while the modal is open.
- * Requires js/api.js (window.Api) and js/auth.js (window.AuthManager) and the
- * modal markup with the ids used below (present in index/kwitansi/surat-jalan).
+ * Mirrors Voiceover's Dynamic QRIS flow:
+ *  - Server converts the merchant's static QRIS payload into a Dynamic QRIS (tag 01=12, tag 54=locked amount)
+ *    with a unique 2-digit (3-digit fallback) verification suffix & 30-minute expiry.
+ *  - Renders the QR from the server SVG endpoint (`/api/payments/qr/:id?s=token`) with inline SVG fallback
+ *    and static QRS.jpg / admin image fallback when dynamic QRIS is off.
+ *  - Supports single-click Rp 1.000 (1 credit) default + multi-credit pack selector (1 / 5 / 10 / 25 credits).
+ *  - Highlights unique suffix digits, provides Copy Nominal & Download QRIS (.svg), and polls every 5s.
  */
 
 const QrisPay = {
@@ -16,10 +16,14 @@ const QrisPay = {
   _expiresAt: null,
   _paymentId: null,
   _total: 0,
+  _qrUrl: null,
+  _type: 'credit',
+  _docId: 'credit',
+  _credits: 1,
+  _callbacks: {},
   _onClean: null,
 
-  /** Should a server-sourced history row show the "Bayar QRIS" button? */
-  isPayable(doc) {
+  isPayable() {
     const u = (typeof window.AuthManager !== 'undefined' && window.AuthManager.getUser)
       ? window.AuthManager.getUser() : null;
     if (!u) return false;
@@ -29,94 +33,186 @@ const QrisPay = {
 
   buttonHtml(docId) {
     const escA = window.escAttr || (s => String(s == null ? '' : s));
-    return `<button class="btn-qris-pay px-2.5 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-lg text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/50" data-id="${escA(docId)}" title="Beli 1 kredit cetak/unduh via QRIS dinamis">Beli Kredit</button>`;
+    return `<button class="btn-qris-pay px-2.5 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-lg text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/50" data-id="${escA(docId)}" title="Bayar via QRIS dinamis">Bayar QRIS</button>`;
   },
 
   _fmtRp(n) { return 'Rp ' + Number(n || 0).toLocaleString('id-ID'); },
-
   _el(id) { return document.getElementById(id); },
 
-  /** Ask the server for a payment for this document, then show + poll the modal. */
-  async open(type, docId, callbacks = {}) {
-    const toast = (msg, kind) => {
-      if (typeof window.showToast === 'function') window.showToast(msg, kind);
-      else if (window.app && window.app.showToast) window.app.showToast(msg, kind);
-    };
+  _toast(msg, kind = 'info') {
+    if (typeof window.showToast === 'function') window.showToast(msg, kind);
+    else if (window.app && window.app.showToast) window.app.showToast(msg, kind);
+    else if (window.kwitansiApp && window.kwitansiApp.showToast) window.kwitansiApp.showToast(msg, kind);
+    else if (window.suratJalanApp && window.suratJalanApp.showToast) window.suratJalanApp.showToast(msg, kind);
+  },
+
+  /** Highlight the trailing unique verification digits inside #qris-amount & #qris-right-example. */
+  _paintHighlightedAmount(totalAmount, suffix, baseAmount) {
+    const suffixLen = Math.max(2, String(suffix || '').length);
+    const formatted = this._fmtRp(totalAmount);
+    const prefix = formatted.slice(0, -suffixLen);
+    const tail = formatted.slice(-suffixLen);
+
+    const amountEl = this._el('qris-amount');
+    if (amountEl) {
+      amountEl.innerHTML = `${prefix}<span class="inline-block bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded-lg font-black ring-2 ring-amber-300/80 shadow-sm">${tail}</span>`;
+    }
+    const rightEl = this._el('qris-right-example');
+    if (rightEl) {
+      rightEl.innerHTML = `${prefix}<span class="bg-amber-400 text-slate-950 px-1 rounded font-black">${tail}</span>`;
+    }
+    const wrongEl = this._el('qris-wrong-example');
+    if (wrongEl) wrongEl.textContent = this._fmtRp(baseAmount);
+
+    const uniqueBig = this._el('qris-unique-big');
+    if (uniqueBig) uniqueBig.textContent = `+${String(suffix || tail)}`;
+
+    const basePriceEl = this._el('qris-base-price');
+    if (basePriceEl) {
+      basePriceEl.textContent = this._type === 'credit' && this._credits > 1
+        ? `${this._fmtRp(baseAmount)} (${this._credits} Kredit)`
+        : this._fmtRp(baseAmount);
+    }
+    const uniqueCodeEl = this._el('qris-unique-code');
+    if (uniqueCodeEl) uniqueCodeEl.textContent = `+ ${this._fmtRp(suffix)}`;
+  },
+
+  _syncPackButtons(unitPrice) {
+    const wrap = this._el('qris-pack-selector');
+    if (!wrap) return;
+    wrap.classList.toggle('hidden', this._type !== 'credit');
+    if (this._type !== 'credit') return;
+
+    const unit = Number(unitPrice) > 0 ? Number(unitPrice) : 1000;
+    wrap.querySelectorAll('.qris-pack-btn').forEach(btn => {
+      const cnt = parseInt(btn.getAttribute('data-qris-credits') || '1', 10);
+      const priceSpan = btn.querySelector('[data-pack-price]');
+      if (priceSpan) priceSpan.textContent = this._fmtRp(cnt * unit);
+      const active = cnt === this._credits;
+      btn.className = 'qris-pack-btn py-1.5 px-2 rounded-xl border text-[11px] font-bold transition ' + (
+        active
+          ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+          : 'bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-emerald-400'
+      );
+    });
+  },
+
+  /** Request payment intent from server & open/update modal. */
+  async open(type, docId, callbacks = {}, opts = {}) {
+    this._type = type || 'credit';
+    this._docId = docId || (this._type === 'credit' ? 'credit' : '');
+    this._credits = this._type === 'credit' ? Math.max(1, Math.round(Number(opts.credits) || 1)) : 1;
+    this._callbacks = callbacks || {};
+
     let intent;
     try {
-      intent = await window.Api.paymentIntent({ type, id: docId });
-    } catch (e) { toast(e.message || 'Gagal membuat pembayaran QRIS.', 'error'); return; }
-
-    if (intent && intent.alreadyClean) {
-      toast('Akun Anda bebas biaya cetak/unduh tanpa perlu bayar.', 'success');
-      if (callbacks.onClean) await callbacks.onClean();
+      const payload = { type: this._type, id: this._docId };
+      if (this._type === 'credit') payload.credits = this._credits;
+      intent = await window.Api.paymentIntent(payload);
+    } catch (e) {
+      this._toast(e.message || 'Gagal membuat pembayaran QRIS.', 'error');
       return;
     }
+
+    if (intent && intent.alreadyClean) {
+      this._toast('Akun Anda bebas biaya cetak/unduh tanpa perlu bayar.', 'success');
+      if (this._callbacks.onClean) await this._callbacks.onClean();
+      return;
+    }
+
     const p = intent.payment;
+    const b = intent.billing || {};
     this._paymentId = p.id;
     this._total = p.totalAmount;
+    this._qrUrl = p.qrUrl || b.qrUrl || null;
+    if (p.credits) this._credits = p.credits;
 
+    this._syncPackButtons(b.unitPrice);
+
+    const dynImg = this._el('qris-dynamic-img');
+    const dynBox = this._el('qris-dynamic');
     const img = this._el('qris-image');
     const imgEmpty = this._el('qris-image-empty');
-    const dyn = this._el('qris-dynamic');
-    const showImage = (src) => {
-      if (!img) return;
-      if (src) {
+    const dynBadge = this._el('qris-dynamic-badge');
+    const merchantLbl = this._el('qris-merchant-label');
+    const dlBtn = this._el('qris-download-btn');
+    const rebuildBtn = this._el('qris-rebuild-btn');
+    if (rebuildBtn) rebuildBtn.classList.add('hidden');
+
+    [dynImg, dynBox, img, imgEmpty].forEach(el => { if (el) el.classList.add('hidden'); });
+    if (dynImg) { dynImg.removeAttribute('src'); dynImg.style.opacity = '1'; }
+    if (dynBox) dynBox.innerHTML = '';
+
+    const showStaticFallback = () => {
+      const src = b.qrisImage || 'QRS.jpg';
+      if (img) {
         img.src = src;
         img.classList.remove('hidden');
-        if (imgEmpty) imgEmpty.classList.add('hidden');
-      } else {
-        img.removeAttribute('src');
-        img.classList.add('hidden');
-        if (imgEmpty) imgEmpty.classList.remove('hidden');
+        img.onerror = () => {
+          img.classList.add('hidden');
+          if (imgEmpty) { imgEmpty.textContent = 'Gambar QRIS belum tersedia.'; imgEmpty.classList.remove('hidden'); }
+        };
+      } else if (imgEmpty) {
+        imgEmpty.textContent = 'Gambar QRIS belum tersedia.';
+        imgEmpty.classList.remove('hidden');
       }
     };
-    // Preferred: DYNAMIC QRIS built by the server (amount is locked in tag 54, payer cannot edit it).
-    // Fallback: the merchant's static QRIS image (payer must type the exact amount).
-    let isDynamic = false;
-    if (dyn) {
-      dyn.innerHTML = '';
-      dyn.classList.add('hidden');
-      const payload = intent.billing && intent.billing.qrisPayload;
-      if (payload) {
-        try {
-          isDynamic = this._renderQr(dyn, payload);
-        } catch (e) { console.error('Dynamic QRIS render failed, using static image:', e); dyn.innerHTML = ''; }
-      }
-    }
-    if (isDynamic) {
-      dyn.classList.remove('hidden');
-      if (img) img.classList.add('hidden');
-      if (imgEmpty) imgEmpty.classList.add('hidden');
+
+    // Priority 1: Server-generated SVG QR (/api/payments/qr/:id?s=token) mirroring Voiceover,
+    // with automatic inline-SVG fallback if image load fails before falling back to static QRIS.
+    let hasDynamic = !!(b.qrisPayload || this._qrUrl);
+    if (this._qrUrl && dynImg) {
+      dynImg.onerror = () => {
+        dynImg.classList.add('hidden');
+        if (dynBox && b.qrisPayload && this._renderQr(dynBox, b.qrisPayload)) {
+          dynBox.classList.remove('hidden');
+        } else {
+          hasDynamic = false;
+          if (dynBadge) dynBadge.classList.add('hidden');
+          if (dlBtn) dlBtn.classList.add('hidden');
+          showStaticFallback();
+        }
+      };
+      dynImg.src = this._qrUrl;
+      dynImg.classList.remove('hidden');
+    } else if (b.qrisPayload && dynBox && this._renderQr(dynBox, b.qrisPayload)) {
+      dynBox.classList.remove('hidden');
     } else {
-      showImage(intent.billing && intent.billing.qrisImage);
+      hasDynamic = false;
+      showStaticFallback();
     }
-    const amount = this._el('qris-amount');
-    if (amount) amount.textContent = this._fmtRp(p.totalAmount);
+
+    if (dynBadge) dynBadge.classList.toggle('hidden', !hasDynamic);
+    if (merchantLbl) {
+      merchantLbl.textContent = b.merchantName
+        ? `Nominal terkunci • ${b.merchantName}`
+        : 'Nominal terkunci otomatis di QRIS';
+    }
+    if (dlBtn) dlBtn.classList.toggle('hidden', !hasDynamic);
+
+    this._paintHighlightedAmount(p.totalAmount, p.suffix, p.baseAmount);
     const baseInfo = this._el('qris-base-info');
-    if (baseInfo) baseInfo.textContent =
-      `Tarif ${this._fmtRp(p.baseAmount)} + kode unik ${p.suffix} — bayar PERSIS ${this._fmtRp(p.totalAmount)}.`;
+    if (baseInfo) {
+      baseInfo.textContent = `Tarif ${this._fmtRp(p.baseAmount)} + kode unik ${p.suffix} — bayar PERSIS ${this._fmtRp(p.totalAmount)}.`;
+    }
+
     const note = this._el('qris-note');
     if (note) {
-      const txt = (intent.billing && intent.billing.qrisNote)
-        || (isDynamic ? 'Scan dengan aplikasi bank / e-wallet apa pun. Nominal sudah terkunci di QR.' : 'Transfer nominal PERSIS via QRIS statis merchant.');
-      note.textContent = txt;
+      note.textContent = b.qrisNote || (hasDynamic
+        ? 'Scan QRIS dengan m-banking atau e-wallet (DANA/GoPay/OVO/ShopeePay/BCA/BRI). Nominal otomatis terkunci persis.'
+        : 'Transfer nominal PERSIS hingga 2 digit terakhir via QRIS merchant agar kredit masuk otomatis.');
     }
+
     this._setStatus('Menunggu pembayaran…');
     const modal = this._el('qris-modal');
     if (modal) modal.classList.remove('hidden');
 
-    this._onClean = callbacks.onClean || null;
+    this._onClean = this._callbacks.onClean || null;
     this._startCountdown(p.expiresAt);
     this._startPolling();
-    toast(`Silakan bayar ${this._fmtRp(p.totalAmount)} via QRIS.`, 'info');
+    this._toast(`Silakan bayar ${this._fmtRp(p.totalAmount)} via QRIS.`, 'info');
   },
 
-  /**
-   * Draw the QR for a (long, ~260 char) QRIS payload. Prefers qrcode-generator -> inline SVG
-   * (EC level M, 4-module quiet zone, scales crisply to any size). Falls back to QRCode.js (canvas).
-   * @returns {boolean} true when something was rendered
-   */
   _renderQr(container, text) {
     if (typeof window.qrcode === 'function') {
       const qr = window.qrcode(0, 'M');
@@ -151,10 +247,23 @@ const QrisPay = {
     const el = this._el('qris-status');
     if (!el) return;
     el.textContent = text;
-    el.className = 'text-xs font-bold ' + (kind === 'paid' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400');
+    el.className = 'text-xs font-bold ' + (
+      kind === 'paid'
+        ? 'text-emerald-600 dark:text-emerald-400'
+        : (kind === 'warn' ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400')
+    );
   },
 
-  /** Show remaining time of the 30-minute code; at 0 stop polling and ask to re-open. */
+  _markExpired() {
+    this._stopCountdown();
+    this._stopPolling();
+    const dynImg = this._el('qris-dynamic-img');
+    if (dynImg) dynImg.style.opacity = '0.35';
+    const rebuildBtn = this._el('qris-rebuild-btn');
+    if (rebuildBtn) rebuildBtn.classList.remove('hidden');
+    this._setStatus('Kode kedaluwarsa — klik "Buat Ulang" untuk QRIS baru.', 'warn');
+  },
+
   _startCountdown(expiresAt) {
     this._stopCountdown();
     const el = this._el('qris-countdown');
@@ -167,9 +276,7 @@ const QrisPay = {
       const ss = String(left % 60).padStart(2, '0');
       if (left > 0) { el.textContent = 'Berlaku ' + mm + ':' + ss; return; }
       el.textContent = 'Kedaluwarsa';
-      this._stopCountdown();
-      this._stopPolling();
-      this._setStatus('Kode nominal kedaluwarsa — buka ulang pembayaran.', 'warn');
+      this._markExpired();
     };
     tick();
     if (this._expiresAt > Date.now()) this._cdTimer = setInterval(tick, 1000);
@@ -181,53 +288,87 @@ const QrisPay = {
 
   _startPolling() {
     this._stopPolling();
-    this._timer = setInterval(() => this._checkOnce(), 8000);
+    this._timer = setInterval(() => this._checkOnce(), 5000);
   },
 
   _stopPolling() {
     if (this._timer) { clearInterval(this._timer); this._timer = null; }
   },
 
-  async _checkOnce() {
+  async _checkOnce(manual = false) {
     if (!this._paymentId) return;
     try {
       const st = await window.Api.paymentStatus({ id: this._paymentId });
       if (st && st.status === 'paid') {
         this._stopPolling();
         this._stopCountdown();
-        this._setStatus('Pembayaran terkonfirmasi ✓', 'paid');
-        if (window.AuthManager && window.AuthManager.getCredits && window.AuthManager.setCredits) {
-          const cur = window.AuthManager.getCredits();
-          window.AuthManager.setCredits(cur + 1);
+        const added = Number(st.creditsGranted) || 1;
+        this._setStatus(`Pembayaran terkonfirmasi (+${added} Kredit) ✓`, 'paid');
+        if (window.AuthManager && window.AuthManager.setCredits) {
+          if (typeof st.printCredits === 'number') {
+            window.AuthManager.setCredits(st.printCredits);
+          } else {
+            const cur = window.AuthManager.getCredits ? window.AuthManager.getCredits() : 0;
+            window.AuthManager.setCredits(cur + added);
+          }
         }
-        // Grab the callback BEFORE close() — close() clears this._onClean.
+        this._toast(`Pembayaran diterima! +${added} kredit cetak/PDF ditambahkan.`, 'success');
         const onClean = this._onClean;
         setTimeout(() => {
           this.close();
           if (onClean) onClean();
         }, 1200);
       } else if (st && st.status === 'expired') {
-        this._stopPolling();
-        this._stopCountdown();
-        this._setStatus('Kode nominal kedaluwarsa — buka ulang pembayaran.', 'warn');
+        this._markExpired();
+      } else if (manual) {
+        this._toast('Belum terdeteksi masuk. Pastikan nominal transfer persis sampai digit kode unik.', 'info');
       }
     } catch { /* transient network/poll error: keep waiting */ }
+  },
+
+  downloadSvg() {
+    const filename = `QRIS-${this._paymentId || 'InvoicePro'}.svg`;
+    const trigger = (blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2500);
+      this._toast('Gambar QRIS (.svg) berhasil diunduh.', 'success');
+    };
+    if (this._qrUrl) {
+      fetch(this._qrUrl, { credentials: 'include' })
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+        .then(trigger)
+        .catch(() => this._toast('Gagal mengunduh QRIS.', 'error'));
+      return;
+    }
+    const svgEl = this._el('qris-dynamic')?.querySelector('svg');
+    if (svgEl) {
+      trigger(new Blob([svgEl.outerHTML], { type: 'image/svg+xml;charset=utf-8' }));
+    }
   },
 
   close() {
     this._stopPolling();
     this._stopCountdown();
+    const dynImg = this._el('qris-dynamic-img');
+    if (dynImg) dynImg.removeAttribute('src');
     const dynEl = this._el('qris-dynamic');
     if (dynEl) dynEl.innerHTML = '';
     const modal = this._el('qris-modal');
     if (modal) modal.classList.add('hidden');
     this._paymentId = null;
+    this._qrUrl = null;
     this._onClean = null;
   },
 
   copyAmount() {
     const text = String(this._total);
-    const done = () => { if (window.app && window.app.showToast) window.app.showToast('Nominal disalin: ' + this._fmtRp(this._total), 'success'); };
+    const done = () => this._toast('Nominal disalin: ' + this._fmtRp(this._total), 'success');
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(done).catch(done);
     } else done();
@@ -240,16 +381,27 @@ if (typeof window !== 'undefined') {
     const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
     on('btn-close-qris-modal', 'click', () => QrisPay.close());
     on('qris-copy-btn', 'click', () => QrisPay.copyAmount());
-    on('qris-check-btn', 'click', () => QrisPay._checkOnce());
+    on('qris-check-btn', 'click', () => QrisPay._checkOnce(true));
+    on('qris-download-btn', 'click', () => QrisPay.downloadSvg());
+    on('qris-rebuild-btn', 'click', () => QrisPay.open(QrisPay._type, QrisPay._docId, QrisPay._callbacks, { credits: QrisPay._credits }));
+
+    document.querySelectorAll('.qris-pack-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cnt = parseInt(btn.getAttribute('data-qris-credits') || '1', 10);
+        if (cnt === QrisPay._credits && QrisPay._paymentId) return;
+        QrisPay.open('credit', 'credit', QrisPay._callbacks, { credits: cnt });
+      });
+    });
+
     on('btn-watermark-pay', 'click', () => QrisPay.open('credit', 'credit', {
       onClean: () => {
-        if (window.app && window.app.showToast) window.app.showToast('Deposit berhasil! Watermark pada dokumen telah dihilangkan.', 'success');
+        QrisPay._toast('Deposit berhasil! Watermark pada dokumen telah dihilangkan.', 'success');
       }
     }));
     document.querySelectorAll('.btn-buy-credits').forEach(btn => {
       btn.addEventListener('click', () => QrisPay.open('credit', 'credit', {
         onClean: () => {
-          if (window.app && window.app.showToast) window.app.showToast('Deposit berhasil! Kredit ditambahkan & watermark dihilangkan.', 'success');
+          QrisPay._toast('Deposit berhasil! Kredit ditambahkan & watermark dihilangkan.', 'success');
         }
       }));
     });

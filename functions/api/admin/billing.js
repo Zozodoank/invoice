@@ -4,7 +4,7 @@
 // price is always recomputed server-side.
 
 import { requireSuperadmin, badRequest } from '../../_shared/guards.js';
-import { getBillingConfig, billingToCamel } from '../../_shared/billing.js';
+import { getBillingConfig, billingToCamel, resolveEffectiveStaticPayload } from '../../_shared/billing.js';
 import { validateStaticQris, maskPayload, normalizePayload } from '../../_shared/qris-emv.js';
 import { json } from '../../_shared/util.js';
 
@@ -12,12 +12,14 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const QRIS_RE = /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/;
 
 /** Admin view of the config. The raw static payload is never echoed back - only a masked preview. */
-function adminView(cfg) {
-  const out = billingToCamel(cfg);
-  const payload = normalizePayload(cfg.qris_static_payload);
+function adminView(cfg, env) {
+  const out = billingToCamel(cfg, env);
+  const eff = resolveEffectiveStaticPayload(cfg, env);
+  const payload = eff.payload ? normalizePayload(eff.payload) : '';
   if (payload) {
     const v = validateStaticQris(payload);
     out.qrisPayloadInfo = {
+      source: eff.source,
       masked: maskPayload(payload),
       valid: !!v.ok,
       error: v.ok ? null : v.error,
@@ -28,6 +30,7 @@ function adminView(cfg) {
   } else {
     out.qrisPayloadInfo = null;
   }
+  out.qrisDisabledByAdmin = !!eff.disabledByAdmin;
   return out;
 }
 
@@ -35,7 +38,7 @@ export async function onRequestGet(context) {
   const auth = await requireSuperadmin(context);
   if (auth instanceof Response) return auth;
   const cfg = await getBillingConfig(context.env.DB);
-  return json(adminView(cfg), 200, { 'Cache-Control': 'no-store' });
+  return json(adminView(cfg, context.env), 200, { 'Cache-Control': 'no-store' });
 }
 
 export async function onRequestPost(context) {
@@ -74,10 +77,15 @@ export async function onRequestPost(context) {
       return badRequest('Gambar QRIS harus PNG/JPEG data-URL maksimal ~300 KB.');
     }
   }
-  // Static QRIS payload text: '' / null removes it; otherwise it must be a valid static payload (TLV + CRC).
+  // Static QRIS payload text:
+  // - '__RESET_ENV__' restores NULL in DB so env.QRIS_STATIC_PAYLOAD fallback applies again.
+  // - null / '' stores '' in DB so dynamic QRIS is explicitly turned off (static image fallback).
+  // - non-empty string validates EMV TLV + CRC and stores it in DB.
   let qrisPayload;
-  if (body.qrisPayload === null || body.qrisPayload === '') {
+  if (body.qrisPayload === '__RESET_ENV__') {
     qrisPayload = null;
+  } else if (body.qrisPayload === null || body.qrisPayload === '') {
+    qrisPayload = '';
   } else if (body.qrisPayload !== undefined) {
     qrisPayload = normalizePayload(body.qrisPayload);
     if (qrisPayload.length > 1000) return badRequest('Payload QRIS terlalu panjang.');
@@ -97,7 +105,9 @@ export async function onRequestPost(context) {
     promo_end: promoEnd !== undefined ? promoEnd : (cur.promo_end || null),
     qris_image: qrisImage !== undefined ? qrisImage : (cur.qris_image || null),
     qris_note: qrisNote !== undefined ? qrisNote : (cur.qris_note || null),
-    qris_static_payload: qrisPayload !== undefined ? qrisPayload : (cur.qris_static_payload || null)
+    qris_static_payload: body.qrisPayload === '__RESET_ENV__'
+      ? null
+      : (qrisPayload !== undefined ? qrisPayload : (cur.qris_static_payload === undefined ? null : cur.qris_static_payload))
   };
 
   await context.env.DB
@@ -108,5 +118,5 @@ export async function onRequestPost(context) {
           rec.qris_image, rec.qris_note, rec.qris_static_payload).run();
 
   const cfg = await getBillingConfig(context.env.DB);
-  return json(adminView(cfg), 200, { 'Cache-Control': 'no-store' });
+  return json(adminView(cfg, context.env), 200, { 'Cache-Control': 'no-store' });
 }
